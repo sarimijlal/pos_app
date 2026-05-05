@@ -1,0 +1,231 @@
+erDiagram
+
+    %% ─── Accounting Core ───────────────────────────────────────────────────────
+
+    accounts {
+        integer id PK
+        text    code  "UNIQUE"
+        text    name
+        text    type  "asset|liability|equity|revenue|expense"
+        integer parent_id FK
+        integer is_active "default 1"
+        text    created_at
+    }
+
+    journal_entries {
+        integer id PK
+        text    date
+        text    reference_no
+        text    narration
+        text    source_type "purchase|sale|purchase_return|sale_return"
+        integer source_id
+        text    created_at
+    }
+purchaseInvoices
+    journal_entry_lines {
+        integer id PK
+        integer journal_entry_id FK
+        integer account_id FK
+        real    debit
+        real    credit
+    }
+
+    %% ─── Parties ────────────────────────────────────────────────────────────────
+
+    suppliers {
+        integer id PK
+        text    name
+        text    phone
+        text    address
+        integer payable_account_id FK
+        integer is_active "default 1"
+        text    created_at
+    }
+
+    customers {
+        integer id PK
+        text    name
+        text    phone
+        integer receivable_account_id FK
+        integer is_active "default 1"
+        text    created_at
+    }
+
+    %% ─── Inventory ──────────────────────────────────────────────────────────────
+
+    items {
+        integer id PK
+        text    name
+        text    item_type "mobile|accessory"
+        integer inventory_account_id FK
+        integer is_active "default 1"
+        text    created_at
+    }
+
+    stock {
+        integer id PK
+        integer item_id FK "UNIQUE"
+        real    quantity
+        text    updated_at
+    }
+
+    imei_units {
+        integer id PK
+        integer item_id FK
+        text    imei "UNIQUE"
+        text    status "in_stock|sold|returned"
+        integer purchase_invoice_line_id FK
+        integer sale_invoice_line_id FK
+        text    created_at
+    }
+
+    %% ─── Purchase Module ────────────────────────────────────────────────────────
+
+    purchase_invoices {
+        integer id PK
+        integer supplier_id FK
+        text    invoice_no "UNIQUE"
+        text    invoice_date
+        text    payment_type "cash|credit|partial"
+        real    cash_amount
+        real    credit_amount
+        text    remarks
+        real    total_amount
+        text    status "active|returned"
+        text    created_at
+    }
+
+    purchase_invoice_lines {
+        integer id PK
+        integer purchase_invoice_id FK
+        integer item_id FK
+        real    quantity
+        real    rate
+        real    discount
+        real    total
+    }
+
+    purchase_imei_lines {
+        integer id PK
+        integer purchase_invoice_line_id FK
+        integer imei_unit_id FK
+    }
+
+    purchase_returns {
+        integer id PK
+        integer original_invoice_id FK
+        text    return_date
+        text    remarks
+        real    total_amount
+        text    created_at
+    }
+
+    purchase_return_lines {
+        integer id PK
+        integer purchase_return_id FK
+        integer purchase_invoice_line_id FK
+        real    quantity_returned
+        integer imei_unit_id FK
+    }
+
+    %% ─── Sales Module ───────────────────────────────────────────────────────────
+
+    salespersons {
+        integer id PK
+        text    name
+        integer is_active "default 1"
+        text    created_at
+    }
+
+    sales_invoices {
+        integer id PK
+        integer customer_id FK
+        text    invoice_no "UNIQUE"
+        text    date
+        text    payment_mode "cash|credit|card|bank"
+        integer salesperson_id FK
+        real    total_amount
+        text    status "active|returned"
+        text    created_at
+    }
+
+    sales_invoice_lines {
+        integer id PK
+        integer sales_invoice_id FK
+        integer item_id FK
+        real    quantity
+        real    sale_price
+        real    cost_price "snapshot — never retroactively updated"
+        real    discount
+        real    total
+    }
+
+    sales_imei_lines {
+        integer id PK
+        integer sales_invoice_line_id FK
+        integer imei_unit_id FK
+    }
+
+    sales_returns {
+        integer id PK
+        integer original_invoice_id FK
+        text    return_date
+        text    remarks
+        real    total_amount
+        text    created_at
+    }
+
+    sales_return_lines {
+        integer id PK
+        integer sales_return_id FK
+        integer sales_invoice_line_id FK
+        real    quantity_returned
+        integer imei_unit_id FK
+    }
+
+    %% ─── Relationships ──────────────────────────────────────────────────────────
+
+    %% accounts self-reference (hierarchy)
+    accounts         ||--o{  accounts              : "parent_id"
+
+    %% journal
+    journal_entries  ||--|{  journal_entry_lines    : "has lines"
+    accounts         ||--o{  journal_entry_lines    : "account_id"
+
+    %% parties → accounts
+    accounts         ||--||  suppliers              : "payable_account_id"
+    accounts         ||--||  customers              : "receivable_account_id"
+    accounts         ||--o{  items                  : "inventory_account_id"
+
+    %% inventory
+    items            ||--o|  stock                  : "item_id (accessories only)"
+    items            ||--o{  imei_units             : "item_id (mobiles only)"
+
+    %% purchase chain
+    suppliers        ||--o{  purchase_invoices      : "supplier_id"
+    purchase_invoices ||--|{ purchase_invoice_lines  : "purchase_invoice_id"
+    items            ||--o{  purchase_invoice_lines  : "item_id"
+    purchase_invoice_lines ||--o{ purchase_imei_lines : "purchase_invoice_line_id"
+    imei_units       ||--o{  purchase_imei_lines    : "imei_unit_id"
+    purchase_invoice_lines ||--||  imei_units        : "purchase_invoice_line_id (on unit)"
+
+    %% purchase returns
+    purchase_invoices ||--o{  purchase_returns       : "original_invoice_id"
+    purchase_returns  ||--|{  purchase_return_lines  : "purchase_return_id"
+    purchase_invoice_lines ||--o{ purchase_return_lines : "purchase_invoice_line_id"
+    imei_units        ||--o{  purchase_return_lines  : "imei_unit_id (mobiles)"
+
+    %% sales chain
+    customers        ||--o{  sales_invoices         : "customer_id"
+    salespersons     ||--o{  sales_invoices         : "salesperson_id"
+    sales_invoices   ||--|{  sales_invoice_lines    : "sales_invoice_id"
+    items            ||--o{  sales_invoice_lines    : "item_id"
+    sales_invoice_lines ||--o{ sales_imei_lines     : "sales_invoice_line_id"
+    imei_units       ||--o{  sales_imei_lines       : "imei_unit_id"
+    sales_invoice_lines ||--o|  imei_units          : "sale_invoice_line_id (on unit)"
+
+    %% sales returns
+    sales_invoices   ||--o{  sales_returns          : "original_invoice_id"
+    sales_returns    ||--|{  sales_return_lines     : "sales_return_id"
+    sales_invoice_lines ||--o{ sales_return_lines   : "sales_invoice_line_id"
+    imei_units       ||--o{  sales_return_lines     : "imei_unit_id (mobiles)"
