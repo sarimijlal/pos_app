@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSalesList } from '../hooks/useSalesList';
 import { useSalesStore } from '../store';
 
-export function SalesTable({ onNew }: { onNew: () => void }) {
+export function SalesTable({ onNew, onSelect }: { onNew: () => void; onSelect?: () => void }) {
   const { invoices, loading, error, reload } = useSalesList();
   const { setSelectedInvoiceId } = useSalesStore();
 
@@ -50,7 +50,7 @@ export function SalesTable({ onNew }: { onNew: () => void }) {
               <TableRow
                 key={inv.id}
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setSelectedInvoiceId(inv.id)}
+                onClick={() => { setSelectedInvoiceId(inv.id); onSelect?.(); }}
               >
                 <TableCell className="font-mono">{inv.invoice_no}</TableCell>
                 <TableCell>{inv.date}</TableCell>

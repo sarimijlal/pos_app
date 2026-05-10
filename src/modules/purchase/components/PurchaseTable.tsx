@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { usePurchaseList } from '../hooks/usePurchaseList';
 import { usePurchaseStore } from '../store';
 
-export function PurchaseTable({ onNew }: { onNew: () => void }) {
+export function PurchaseTable({ onNew, onSelect }: { onNew: () => void; onSelect?: () => void }) {
   const { invoices, loading, error, reload } = usePurchaseList();
   const { setSelectedInvoiceId } = usePurchaseStore();
 
@@ -49,7 +49,7 @@ export function PurchaseTable({ onNew }: { onNew: () => void }) {
               <TableRow
                 key={inv.id}
                 className="cursor-pointer hover:bg-muted/50"
-                onClick={() => setSelectedInvoiceId(inv.id)}
+                onClick={() => { setSelectedInvoiceId(inv.id); onSelect?.(); }}
               >
                 <TableCell className="font-mono">{inv.invoice_no}</TableCell>
                 <TableCell>{inv.invoice_date}</TableCell>

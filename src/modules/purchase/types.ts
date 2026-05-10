@@ -47,7 +47,25 @@ export type PurchaseInvoiceRow = PurchaseInvoice & {
   supplier_name: string;
 };
 
+export type ImeiDetail = {
+  imei: string;
+  status: 'in_stock' | 'sold' | 'returned';
+};
+
 export type PurchaseInvoiceDetail = PurchaseInvoice & {
   supplier_name: string;
-  lines: Array<PurchaseInvoiceLine & { item_name: string; imeis: string[] }>;
+  lines: Array<PurchaseInvoiceLine & { item_name: string; imeis: ImeiDetail[] }>;
+};
+
+export type PurchaseReturnLineInput = {
+  purchase_invoice_line_id: number;
+  quantity_returned: number;
+  imeis: string[];
+};
+
+export type SavePurchaseReturnInput = {
+  original_invoice_id: number;
+  return_date: string;
+  remarks?: string;
+  lines: PurchaseReturnLineInput[];
 };

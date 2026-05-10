@@ -45,8 +45,26 @@ export type SalesInvoiceRow = SalesInvoice & {
   salesperson_name: string | null;
 };
 
+export type ImeiDetail = {
+  imei: string;
+  status: 'in_stock' | 'sold' | 'returned';
+};
+
 export type SalesInvoiceDetail = SalesInvoice & {
   customer_name: string;
   salesperson_name: string | null;
-  lines: Array<SalesInvoiceLine & { item_name: string; imeis: string[] }>;
+  lines: Array<SalesInvoiceLine & { item_name: string; imeis: ImeiDetail[] }>;
+};
+
+export type SalesReturnLineInput = {
+  sales_invoice_line_id: number;
+  quantity_returned: number;
+  imeis: string[];
+};
+
+export type SaveSalesReturnInput = {
+  original_invoice_id: number;
+  return_date: string;
+  remarks?: string;
+  lines: SalesReturnLineInput[];
 };

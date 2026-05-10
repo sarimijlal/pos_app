@@ -42,6 +42,8 @@ pub fn run() {
             commands::sales::get_sales_invoices,
             commands::sales::get_sales_invoice_by_id,
             commands::sales::get_available_imeis,
+            commands::purchase::save_purchase_return,
+            commands::sales::save_sales_return,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

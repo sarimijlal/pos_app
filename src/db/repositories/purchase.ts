@@ -3,6 +3,7 @@ import type {
   SavePurchaseInvoiceInput,
   PurchaseInvoiceRow,
   PurchaseInvoiceDetail,
+  SavePurchaseReturnInput,
 } from '../../modules/purchase/types';
 
 export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Promise<number> {
@@ -18,4 +19,8 @@ export async function getPurchaseInvoices(): Promise<PurchaseInvoiceRow[]> {
 
 export async function getPurchaseInvoiceById(id: number): Promise<PurchaseInvoiceDetail | null> {
   return invoke<PurchaseInvoiceDetail | null>('get_purchase_invoice_by_id', { id });
+}
+
+export async function savePurchaseReturn(input: SavePurchaseReturnInput): Promise<number> {
+  return invoke<number>('save_purchase_return', { input });
 }

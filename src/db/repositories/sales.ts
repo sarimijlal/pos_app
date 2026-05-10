@@ -4,6 +4,7 @@ import type {
   SaveSalesInvoiceInput,
   SalesInvoiceRow,
   SalesInvoiceDetail,
+  SaveSalesReturnInput,
 } from '../../modules/sales/types';
 
 export async function getSalespersons(): Promise<Salesperson[]> {
@@ -31,4 +32,8 @@ export async function getSalesInvoiceById(id: number): Promise<SalesInvoiceDetai
 
 export async function getAvailableImeis(itemId: number): Promise<string[]> {
   return invoke<string[]>('get_available_imeis', { itemId });
+}
+
+export async function saveSalesReturn(input: SaveSalesReturnInput): Promise<number> {
+  return invoke<number>('save_sales_return', { input });
 }
