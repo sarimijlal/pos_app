@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getDb } from './db/client';
 import { PurchaseTable } from './modules/purchase/components/PurchaseTable';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
 import { PartiesScreen } from './modules/master-data/components/PartiesScreen';
@@ -14,6 +15,10 @@ const NAV: { label: string; section: Section }[] = [
 
 function App() {
   const [section, setSection] = useState<Section>('purchase-list');
+
+  useEffect(() => {
+    getDb().catch(console.error);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

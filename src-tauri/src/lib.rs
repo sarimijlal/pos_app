@@ -26,7 +26,19 @@ pub fn run() {
                 .add_migrations("sqlite:pos.db", migrations)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            commands::purchase::save_purchase_invoice,
+            commands::purchase::get_purchase_invoices,
+            commands::purchase::get_purchase_invoice_by_id,
+            commands::accounting::get_suppliers,
+            commands::accounting::insert_supplier,
+            commands::accounting::get_customers,
+            commands::accounting::insert_customer,
+            commands::inventory::get_items,
+            commands::inventory::insert_item,
+            commands::sales::get_salespersons,
+            commands::sales::insert_salesperson,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
