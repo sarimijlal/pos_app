@@ -29,7 +29,6 @@ pub async fn get_items(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -69,7 +68,6 @@ pub async fn insert_item(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 

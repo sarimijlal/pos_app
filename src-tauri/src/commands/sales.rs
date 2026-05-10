@@ -26,7 +26,6 @@ pub async fn get_salespersons(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -62,7 +61,6 @@ pub async fn insert_salesperson(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 

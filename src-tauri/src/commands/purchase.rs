@@ -54,7 +54,6 @@ pub struct PurchaseInvoiceDetail {
 pub struct PurchaseLineInput {
     item_id: i64,
     item_type: String,
-    item_name: String,
     quantity: f64,
     rate: f64,
     discount: f64,
@@ -286,7 +285,6 @@ pub async fn save_purchase_invoice(
             .ok_or_else(|| "Database not loaded — call Database.load() first".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -327,7 +325,6 @@ pub async fn get_purchase_invoices(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -375,7 +372,6 @@ pub async fn get_purchase_invoice_by_id(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 

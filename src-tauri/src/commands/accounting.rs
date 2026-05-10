@@ -49,7 +49,6 @@ pub async fn get_suppliers(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -90,7 +89,6 @@ pub async fn insert_supplier(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -166,7 +164,6 @@ pub async fn get_customers(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
@@ -206,7 +203,6 @@ pub async fn insert_customer(
             .ok_or_else(|| "Database not loaded".to_string())?
         {
             DbPool::Sqlite(p) => p.clone(),
-            _ => return Err("Expected SQLite pool".to_string()),
         }
     };
 
