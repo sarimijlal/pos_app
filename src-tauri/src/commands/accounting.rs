@@ -2,6 +2,52 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use tauri_plugin_sql::{DbInstances, DbPool};
 
+// ─── Chart of Accounts / Dashboard types ─────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct AccountRow {
+    id: i64,
+    code: String,
+    name: String,
+    #[serde(rename = "type")]
+    account_type: String,
+    parent_id: Option<i64>,
+    is_active: i64,
+}
+
+#[derive(Deserialize)]
+pub struct InsertAccountInput {
+    code: String,
+    name: String,
+    account_type: String,
+    parent_id: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct LowStockItem {
+    item_id: i64,
+    name: String,
+    quantity: f64,
+}
+
+#[derive(Serialize)]
+pub struct RecentEntry {
+    id: i64,
+    date: String,
+    reference_no: String,
+    narration: String,
+    source_type: String,
+    total_debit: f64,
+}
+
+#[derive(Serialize)]
+pub struct DashboardSummary {
+    today_sales: f64,
+    today_purchases: f64,
+    low_stock: Vec<LowStockItem>,
+    recent_entries: Vec<RecentEntry>,
+}
+
 #[derive(Serialize)]
 pub struct SupplierRow {
     id: i64,
@@ -262,4 +308,178 @@ async fn do_insert_customer(
     .map_err(|e| e.to_string())?;
 
     Ok(res.last_insert_rowid())
+}
+
+// ─── Chart of Accounts ────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_accounts(
+    db_instances: tauri::State<'_, DbInstances>,
+) -> Result<Vec<AccountRow>, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let rows = sqlx::query(
+        "SELECT id, code, name, type, parent_id, is_active \
+         FROM accounts ORDER BY code",
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    rows.iter()
+        .map(|r| {
+            Ok(AccountRow {
+                id: r.try_get("id").map_err(|e| e.to_string())?,
+                code: r.try_get("code").map_err(|e| e.to_string())?,
+                name: r.try_get("name").map_err(|e| e.to_string())?,
+                account_type: r.try_get("type").map_err(|e| e.to_string())?,
+                parent_id: r.try_get("parent_id").map_err(|e| e.to_string())?,
+                is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn insert_account(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: InsertAccountInput,
+) -> Result<i64, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let res = sqlx::query(
+        "INSERT INTO accounts (code, name, type, parent_id, is_active, created_at) \
+         VALUES (?, ?, ?, ?, 1, datetime('now'))",
+    )
+    .bind(&input.code)
+    .bind(&input.name)
+    .bind(&input.account_type)
+    .bind(input.parent_id)
+    .execute(&pool)
+    .await
+    .map_err(|e| {
+        if e.to_string().contains("UNIQUE constraint failed") {
+            format!("Account code '{}' already exists", input.code)
+        } else {
+            e.to_string()
+        }
+    })?;
+
+    Ok(res.last_insert_rowid())
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_dashboard_summary(
+    db_instances: tauri::State<'_, DbInstances>,
+) -> Result<DashboardSummary, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let sales_row = sqlx::query(
+        "SELECT COALESCE(SUM(total_amount), 0.0) as total \
+         FROM sales_invoices \
+         WHERE date = date('now') AND status = 'active'",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let today_sales: f64 = sales_row.try_get("total").map_err(|e| e.to_string())?;
+
+    let purchases_row = sqlx::query(
+        "SELECT COALESCE(SUM(total_amount), 0.0) as total \
+         FROM purchase_invoices \
+         WHERE invoice_date = date('now') AND status = 'active'",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let today_purchases: f64 = purchases_row.try_get("total").map_err(|e| e.to_string())?;
+
+    let low_stock_rows = sqlx::query(
+        "SELECT i.id as item_id, i.name, s.quantity \
+         FROM items i JOIN stock s ON s.item_id = i.id \
+         WHERE i.item_type = 'accessory' AND s.quantity < 5 \
+         ORDER BY s.quantity ASC",
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let low_stock: Vec<LowStockItem> = low_stock_rows
+        .iter()
+        .map(|r| {
+            Ok(LowStockItem {
+                item_id: r.try_get("item_id").map_err(|e: sqlx::Error| e.to_string())?,
+                name: r.try_get("name").map_err(|e: sqlx::Error| e.to_string())?,
+                quantity: r.try_get("quantity").map_err(|e: sqlx::Error| e.to_string())?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    let entry_rows = sqlx::query(
+        "SELECT je.id, je.date, je.reference_no, je.narration, je.source_type, \
+                SUM(jel.debit) as total_debit \
+         FROM journal_entries je \
+         JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id \
+         GROUP BY je.id \
+         ORDER BY je.created_at DESC \
+         LIMIT 10",
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let recent_entries: Vec<RecentEntry> = entry_rows
+        .iter()
+        .map(|r| {
+            Ok(RecentEntry {
+                id: r.try_get("id").map_err(|e: sqlx::Error| e.to_string())?,
+                date: r.try_get("date").map_err(|e: sqlx::Error| e.to_string())?,
+                reference_no: r
+                    .try_get("reference_no")
+                    .map_err(|e: sqlx::Error| e.to_string())?,
+                narration: r
+                    .try_get("narration")
+                    .map_err(|e: sqlx::Error| e.to_string())?,
+                source_type: r
+                    .try_get("source_type")
+                    .map_err(|e: sqlx::Error| e.to_string())?,
+                total_debit: r
+                    .try_get("total_debit")
+                    .map_err(|e: sqlx::Error| e.to_string())?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    Ok(DashboardSummary {
+        today_sales,
+        today_purchases,
+        low_stock,
+        recent_entries,
+    })
 }

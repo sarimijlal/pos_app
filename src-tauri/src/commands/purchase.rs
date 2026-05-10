@@ -347,7 +347,7 @@ async fn do_purchase_return(
 ) -> Result<i64, String> {
     // 1. Load + guard original invoice
     let inv = sqlx::query(
-        "SELECT id, supplier_id, payment_type, cash_amount, credit_amount, total_amount, status \
+        "SELECT id, supplier_id, payment_type, cash_amount, total_amount, status \
          FROM purchase_invoices WHERE id = ?",
     )
     .bind(input.original_invoice_id)
@@ -363,7 +363,6 @@ async fn do_purchase_return(
     let supplier_id: i64 = inv.try_get("supplier_id").map_err(|e| e.to_string())?;
     let payment_type: String = inv.try_get("payment_type").map_err(|e| e.to_string())?;
     let inv_cash_amount: Option<f64> = inv.try_get("cash_amount").map_err(|e| e.to_string())?;
-    let inv_credit_amount: Option<f64> = inv.try_get("credit_amount").map_err(|e| e.to_string())?;
     let inv_total_amount: f64 = inv.try_get("total_amount").map_err(|e| e.to_string())?;
 
     // 2. Validate and process each line, accumulate return_total
@@ -660,7 +659,6 @@ async fn do_purchase_return(
         }
         "partial" => {
             let cash_amount = inv_cash_amount.unwrap_or(0.0);
-            let credit_amount = inv_credit_amount.unwrap_or(0.0);
             let cash_ratio = if inv_total_amount > 0.0 {
                 cash_amount / inv_total_amount
             } else {

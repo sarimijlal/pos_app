@@ -44,6 +44,13 @@ pub fn run() {
             commands::sales::get_available_imeis,
             commands::purchase::save_purchase_return,
             commands::sales::save_sales_return,
+            commands::inventory::get_inventory_mobiles,
+            commands::inventory::get_inventory_accessories,
+            commands::inventory::get_item_imeis,
+            commands::inventory::lookup_imei,
+            commands::accounting::get_accounts,
+            commands::accounting::insert_account,
+            commands::accounting::get_dashboard_summary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
