@@ -19,10 +19,12 @@ export async function postJournalEntry(db: Database, entry: JournalEntryInput): 
   const totalDebits  = entry.lines.reduce((s, l) => s + l.debit,  0);
   const totalCredits = entry.lines.reduce((s, l) => s + l.credit, 0);
 
+  console.log(`[engine] posting journal entry ref:${entry.reference_no} debits:${totalDebits} credits:${totalCredits}`);
+
   if (Math.abs(totalDebits - totalCredits) > 0.001) {
-    throw new Error(
-      `Unbalanced journal entry "${entry.reference_no}": debits ${totalDebits} ≠ credits ${totalCredits}`
-    );
+    const msg = `Unbalanced journal entry "${entry.reference_no}": debits ${totalDebits} ≠ credits ${totalCredits}`;
+    console.error('[engine]', msg);
+    throw new Error(msg);
   }
 
   const result = await db.execute(
@@ -30,8 +32,8 @@ export async function postJournalEntry(db: Database, entry: JournalEntryInput): 
      VALUES (?, ?, ?, ?, ?, datetime('now'))`,
     [entry.date, entry.reference_no, entry.narration, entry.source_type, entry.source_id]
   );
-
   const journalEntryId = result.lastInsertId!;
+  console.log('[engine] journal_entries row inserted, id:', journalEntryId);
 
   for (const line of entry.lines) {
     await db.execute(
@@ -40,4 +42,5 @@ export async function postJournalEntry(db: Database, entry: JournalEntryInput): 
       [journalEntryId, line.account_id, line.debit, line.credit]
     );
   }
+  console.log(`[engine] ${entry.lines.length} journal_entry_lines inserted`);
 }

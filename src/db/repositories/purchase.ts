@@ -9,17 +9,18 @@ import type {
 
 export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Promise<number> {
   const db = await getDb();
+  console.log('[purchase:repo] starting transaction');
   await db.execute('BEGIN TRANSACTION', []);
 
   try {
     const totalAmount = input.lines.reduce((sum, l) => sum + l.total, 0);
+    console.log('[purchase:repo] total amount:', totalAmount);
 
-    // Generate sequential invoice number
     const countRows = await db.select<{ count: number }[]>(
-      'SELECT COUNT(*) as count FROM purchase_invoices',
-      []
+      'SELECT COUNT(*) as count FROM purchase_invoices', []
     );
     const invoiceNo = `PI-${String(countRows[0].count + 1).padStart(4, '0')}`;
+    console.log('[purchase:repo] invoice no:', invoiceNo);
 
     const invoiceResult = await db.execute(
       `INSERT INTO purchase_invoices
@@ -30,15 +31,18 @@ export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Prom
         invoiceNo,
         input.invoice_date,
         input.payment_type,
-        input.payment_type === 'credit'  ? null : (input.cash_amount  || totalAmount),
-        input.payment_type === 'cash'    ? null : (input.credit_amount || totalAmount),
+        input.payment_type === 'credit' ? null : (input.cash_amount  || totalAmount),
+        input.payment_type === 'cash'   ? null : (input.credit_amount || totalAmount),
         input.remarks || null,
         totalAmount,
       ]
     );
     const invoiceId = invoiceResult.lastInsertId!;
+    console.log('[purchase:repo] invoice header inserted, id:', invoiceId);
 
     for (const line of input.lines) {
+      console.log(`[purchase:repo] inserting line — item_id:${line.item_id} type:${line.item_type} qty:${line.quantity} rate:${line.rate}`);
+
       const lineResult = await db.execute(
         `INSERT INTO purchase_invoice_lines
            (purchase_invoice_id, item_id, quantity, rate, discount, total)
@@ -46,8 +50,10 @@ export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Prom
         [invoiceId, line.item_id, line.quantity, line.rate, line.discount || null, line.total]
       );
       const lineId = lineResult.lastInsertId!;
+      console.log('[purchase:repo] line inserted, id:', lineId);
 
       if (line.item_type === 'mobile') {
+        console.log(`[purchase:repo] inserting ${line.imeis.length} IMEI(s) for line ${lineId}`);
         for (const imei of line.imeis) {
           const imeiResult = await db.execute(
             `INSERT INTO imei_units (item_id, imei, status, purchase_invoice_line_id, created_at)
@@ -58,21 +64,21 @@ export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Prom
             'INSERT INTO purchase_imei_lines (purchase_invoice_line_id, imei_unit_id) VALUES (?, ?)',
             [lineId, imeiResult.lastInsertId!]
           );
+          console.log('[purchase:repo] IMEI inserted:', imei);
         }
       } else {
-        // Upsert stock row for accessories
         await db.execute(
           `INSERT INTO stock (item_id, quantity, updated_at) VALUES (?, ?, datetime('now'))
            ON CONFLICT(item_id) DO UPDATE SET quantity = quantity + ?, updated_at = datetime('now')`,
           [line.item_id, line.quantity, line.quantity]
         );
+        console.log(`[purchase:repo] stock upserted — item_id:${line.item_id} qty:${line.quantity}`);
       }
     }
 
-    // Resolve account IDs for journal entry
+    console.log('[purchase:repo] resolving account IDs for journal entry');
     const inventoryAccountId = await getAccountIdByCode(db, '1004');
 
-    // Look up supplier's payable account for credit / partial
     let supplierPayableAccountId: number | null = null;
     if (input.payment_type !== 'cash') {
       const supplierRows = await db.select<{ payable_account_id: number }[]>(
@@ -80,11 +86,10 @@ export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Prom
         [input.supplier_id]
       );
       supplierPayableAccountId = supplierRows[0].payable_account_id;
+      console.log('[purchase:repo] supplier payable account id:', supplierPayableAccountId);
     }
 
     const journalLines = [];
-
-    // Debit: Inventory for full amount
     journalLines.push({ account_id: inventoryAccountId, debit: totalAmount, credit: 0 });
 
     if (input.payment_type === 'cash') {
@@ -93,11 +98,12 @@ export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Prom
     } else if (input.payment_type === 'credit') {
       journalLines.push({ account_id: supplierPayableAccountId!, debit: 0, credit: totalAmount });
     } else {
-      // partial
       const cashAccountId = await getAccountIdByCode(db, '1001');
       journalLines.push({ account_id: cashAccountId, debit: 0, credit: input.cash_amount });
       journalLines.push({ account_id: supplierPayableAccountId!, debit: 0, credit: input.credit_amount });
     }
+
+    console.log('[purchase:repo] journal lines:', journalLines);
 
     await postJournalEntry(db, {
       date: input.invoice_date,
@@ -109,8 +115,10 @@ export async function savePurchaseInvoice(input: SavePurchaseInvoiceInput): Prom
     });
 
     await db.execute('COMMIT', []);
+    console.log('[purchase:repo] transaction committed');
     return invoiceId;
   } catch (err) {
+    console.error('[purchase:repo] transaction failed, rolling back:', err);
     await db.execute('ROLLBACK', []);
     throw err;
   }
