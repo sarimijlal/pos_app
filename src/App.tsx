@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { getDb } from './db/client';
 import { PurchaseTable } from './modules/purchase/components/PurchaseTable';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
+import { SalesTable } from './modules/sales/components/SalesTable';
+import { SalesForm } from './modules/sales/components/SalesForm';
 import { PartiesScreen } from './modules/master-data/components/PartiesScreen';
 import { ItemsScreen } from './modules/master-data/components/ItemsScreen';
 
-type Section = 'purchase-list' | 'purchase-new' | 'master-parties' | 'master-items';
+type Section = 'purchase-list' | 'purchase-new' | 'sales-list' | 'sales-new' | 'master-parties' | 'master-items';
 
 const NAV: { label: string; section: Section }[] = [
   { label: 'Purchases', section: 'purchase-list' },
+  { label: 'Sales', section: 'sales-list' },
   { label: 'Suppliers & Customers', section: 'master-parties' },
   { label: 'Items', section: 'master-items' },
 ];
@@ -49,6 +52,15 @@ function App() {
           <PurchaseForm
             onSaved={() => setSection('purchase-list')}
             onCancel={() => setSection('purchase-list')}
+          />
+        )}
+        {section === 'sales-list' && (
+          <SalesTable onNew={() => setSection('sales-new')} />
+        )}
+        {section === 'sales-new' && (
+          <SalesForm
+            onSaved={() => setSection('sales-list')}
+            onCancel={() => setSection('sales-list')}
           />
         )}
         {section === 'master-parties' && <PartiesScreen />}

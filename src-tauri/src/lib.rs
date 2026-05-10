@@ -38,6 +38,10 @@ pub fn run() {
             commands::inventory::insert_item,
             commands::sales::get_salespersons,
             commands::sales::insert_salesperson,
+            commands::sales::save_sales_invoice,
+            commands::sales::get_sales_invoices,
+            commands::sales::get_sales_invoice_by_id,
+            commands::sales::get_available_imeis,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

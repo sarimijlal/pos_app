@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sqlx::{Row, Sqlite, Transaction};
 use tauri_plugin_sql::{DbInstances, DbPool};
+
+// ─── Salesperson types (existing) ─────────────────────────────────────────────
 
 #[derive(Serialize)]
 pub struct SalespersonRow {
@@ -14,6 +16,77 @@ pub struct SalespersonRow {
 pub struct InsertSalespersonInput {
     name: String,
 }
+
+// ─── Sales invoice input types ────────────────────────────────────────────────
+
+#[derive(Deserialize, Debug)]
+pub struct SalesLineInput {
+    item_id: i64,
+    item_type: String,
+    quantity: f64,
+    sale_price: f64,
+    discount: f64,
+    total: f64,
+    imeis: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SaveSalesInvoiceInput {
+    customer_id: i64,
+    invoice_date: String,
+    payment_mode: String, // cash | credit | card | bank
+    salesperson_id: Option<i64>,
+    lines: Vec<SalesLineInput>,
+}
+
+// ─── Sales invoice read types ─────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct SalesInvoiceRow {
+    id: i64,
+    customer_id: i64,
+    invoice_no: String,
+    date: String,
+    payment_mode: String,
+    salesperson_id: Option<i64>,
+    total_amount: f64,
+    status: String,
+    created_at: String,
+    customer_name: String,
+    salesperson_name: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct SalesLineRow {
+    id: i64,
+    sales_invoice_id: i64,
+    item_id: i64,
+    quantity: f64,
+    sale_price: f64,
+    cost_price: f64,
+    discount: Option<f64>,
+    total: f64,
+    item_name: String,
+    imeis: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub struct SalesInvoiceDetail {
+    id: i64,
+    customer_id: i64,
+    invoice_no: String,
+    date: String,
+    payment_mode: String,
+    salesperson_id: Option<i64>,
+    total_amount: f64,
+    status: String,
+    created_at: String,
+    customer_name: String,
+    salesperson_name: Option<String>,
+    lines: Vec<SalesLineRow>,
+}
+
+// ─── Salesperson commands (existing) ──────────────────────────────────────────
 
 #[tauri::command]
 pub async fn get_salespersons(
@@ -75,4 +148,487 @@ pub async fn insert_salesperson(
     let id = res.last_insert_rowid();
     eprintln!("[sales:rust] salesperson inserted id:{id}");
     Ok(id)
+}
+
+// ─── Save sales invoice ───────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn save_sales_invoice(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: SaveSalesInvoiceInput,
+) -> Result<i64, String> {
+    eprintln!(
+        "[sales:rust] save_sales_invoice called, customer_id: {}",
+        input.customer_id
+    );
+
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let mut tx = pool.begin().await.map_err(|e| {
+        eprintln!("[sales:rust] begin failed: {e}");
+        e.to_string()
+    })?;
+    eprintln!("[sales:rust] transaction started");
+
+    match do_save(&mut tx, &input).await {
+        Ok(id) => {
+            tx.commit().await.map_err(|e| {
+                eprintln!("[sales:rust] commit failed: {e}");
+                e.to_string()
+            })?;
+            eprintln!("[sales:rust] committed, invoice_id: {id}");
+            Ok(id)
+        }
+        Err(e) => {
+            eprintln!("[sales:rust] do_save failed: {e}");
+            let _ = tx.rollback().await;
+            eprintln!("[sales:rust] rolled back");
+            Err(e)
+        }
+    }
+}
+
+async fn do_save(
+    tx: &mut Transaction<'_, Sqlite>,
+    input: &SaveSalesInvoiceInput,
+) -> Result<i64, String> {
+    let total_amount: f64 = input.lines.iter().map(|l| l.total).sum();
+
+    let row = sqlx::query("SELECT COUNT(*) as count FROM sales_invoices")
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    let count: i64 = row.try_get("count").map_err(|e| e.to_string())?;
+    let invoice_no = format!("SI-{:04}", count + 1);
+    eprintln!("[sales:rust] invoice_no: {invoice_no}, total: {total_amount}");
+
+    let res = sqlx::query(
+        "INSERT INTO sales_invoices \
+         (customer_id, invoice_no, date, payment_mode, salesperson_id, total_amount, status, created_at) \
+         VALUES (?, ?, ?, ?, ?, ?, 'active', datetime('now'))",
+    )
+    .bind(input.customer_id)
+    .bind(&invoice_no)
+    .bind(&input.invoice_date)
+    .bind(&input.payment_mode)
+    .bind(input.salesperson_id)
+    .bind(total_amount)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let invoice_id = res.last_insert_rowid();
+    eprintln!("[sales:rust] invoice inserted, id: {invoice_id}");
+
+    let mut cogs_total: f64 = 0.0;
+
+    for line in &input.lines {
+        // Resolve cost_price from purchase history
+        let cost_price: f64 = if line.item_type == "mobile" && !line.imeis.is_empty() {
+            let row = sqlx::query(
+                "SELECT pil.rate FROM purchase_invoice_lines pil \
+                 JOIN imei_units iu ON iu.purchase_invoice_line_id = pil.id \
+                 WHERE iu.imei = ? LIMIT 1",
+            )
+            .bind(&line.imeis[0])
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+            row.map(|r| r.try_get::<f64, _>("rate").unwrap_or(0.0))
+                .unwrap_or(0.0)
+        } else {
+            let row = sqlx::query(
+                "SELECT rate FROM purchase_invoice_lines WHERE item_id = ? ORDER BY id DESC LIMIT 1",
+            )
+            .bind(line.item_id)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+            row.map(|r| r.try_get::<f64, _>("rate").unwrap_or(0.0))
+                .unwrap_or(0.0)
+        };
+
+        let discount_val: Option<f64> = if line.discount == 0.0 {
+            None
+        } else {
+            Some(line.discount)
+        };
+
+        let res = sqlx::query(
+            "INSERT INTO sales_invoice_lines \
+             (sales_invoice_id, item_id, quantity, sale_price, cost_price, discount, total) \
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(invoice_id)
+        .bind(line.item_id)
+        .bind(line.quantity)
+        .bind(line.sale_price)
+        .bind(cost_price)
+        .bind(discount_val)
+        .bind(line.total)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+        let line_id = res.last_insert_rowid();
+        eprintln!(
+            "[sales:rust] line inserted id:{line_id} item_id:{} type:{}",
+            line.item_id, line.item_type
+        );
+
+        cogs_total += cost_price * line.quantity;
+
+        if line.item_type == "mobile" {
+            for imei in &line.imeis {
+                let res = sqlx::query(
+                    "UPDATE imei_units SET status='sold', sale_invoice_line_id=? \
+                     WHERE imei=? AND status='in_stock'",
+                )
+                .bind(line_id)
+                .bind(imei.as_str())
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                if res.rows_affected() == 0 {
+                    return Err(format!("IMEI {imei} is not in stock"));
+                }
+
+                let row = sqlx::query("SELECT id FROM imei_units WHERE imei = ?")
+                    .bind(imei.as_str())
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let imei_unit_id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+
+                sqlx::query(
+                    "INSERT INTO sales_imei_lines (sales_invoice_line_id, imei_unit_id) \
+                     VALUES (?, ?)",
+                )
+                .bind(line_id)
+                .bind(imei_unit_id)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                eprintln!("[sales:rust] IMEI marked sold: {imei}");
+            }
+        } else {
+            let res = sqlx::query(
+                "UPDATE stock SET quantity = quantity - ?, updated_at = datetime('now') \
+                 WHERE item_id = ? AND quantity >= ?",
+            )
+            .bind(line.quantity)
+            .bind(line.item_id)
+            .bind(line.quantity)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+            if res.rows_affected() == 0 {
+                return Err(format!(
+                    "Insufficient stock for item_id {}",
+                    line.item_id
+                ));
+            }
+            eprintln!("[sales:rust] stock decremented item_id:{}", line.item_id);
+        }
+    }
+
+    // ── Journal entry (single je for Event A + Event B) ──────────────────────
+
+    let je_res = sqlx::query(
+        "INSERT INTO journal_entries \
+         (date, reference_no, narration, source_type, source_id, created_at) \
+         VALUES (?, ?, ?, 'sale', ?, datetime('now'))",
+    )
+    .bind(&input.invoice_date)
+    .bind(&invoice_no)
+    .bind(format!("Sales invoice {invoice_no}"))
+    .bind(invoice_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let je_id = je_res.last_insert_rowid();
+    eprintln!("[sales:rust] journal_entry inserted id:{je_id}");
+
+    // Event A — Revenue recognition: debit payment account, credit Sales Revenue
+    let debit_acct_id: i64 = match input.payment_mode.as_str() {
+        "cash" => {
+            let row = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            row.try_get("id").map_err(|e| e.to_string())?
+        }
+        "card" | "bank" => {
+            let row = sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            row.try_get("id").map_err(|e| e.to_string())?
+        }
+        "credit" => {
+            let row = sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+                .bind(input.customer_id)
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            row.try_get("receivable_account_id")
+                .map_err(|e| e.to_string())?
+        }
+        _ => return Err(format!("Unknown payment_mode: {}", input.payment_mode)),
+    };
+
+    let revenue_acct_row = sqlx::query("SELECT id FROM accounts WHERE code = '4001'")
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    let revenue_acct_id: i64 = revenue_acct_row
+        .try_get("id")
+        .map_err(|e| e.to_string())?;
+
+    // Debit payment account
+    sqlx::query(
+        "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+         VALUES (?, ?, ?, 0)",
+    )
+    .bind(je_id)
+    .bind(debit_acct_id)
+    .bind(total_amount)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Credit Sales Revenue
+    sqlx::query(
+        "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+         VALUES (?, ?, 0, ?)",
+    )
+    .bind(je_id)
+    .bind(revenue_acct_id)
+    .bind(total_amount)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    // Event B — COGS: debit COGS, credit Inventory (only if cogs_total > 0)
+    if cogs_total > 0.0 {
+        let cogs_row = sqlx::query("SELECT id FROM accounts WHERE code = '5001'")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        let cogs_acct_id: i64 = cogs_row.try_get("id").map_err(|e| e.to_string())?;
+
+        let inv_row = sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        let inv_acct_id: i64 = inv_row.try_get("id").map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, ?, 0)",
+        )
+        .bind(je_id)
+        .bind(cogs_acct_id)
+        .bind(cogs_total)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, 0, ?)",
+        )
+        .bind(je_id)
+        .bind(inv_acct_id)
+        .bind(cogs_total)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        eprintln!("[sales:rust] COGS entry posted: {cogs_total}");
+    }
+
+    eprintln!("[sales:rust] all inserts done, invoice_id: {invoice_id}");
+    Ok(invoice_id)
+}
+
+// ─── Read commands ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn get_sales_invoices(
+    db_instances: tauri::State<'_, DbInstances>,
+) -> Result<Vec<SalesInvoiceRow>, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let rows = sqlx::query(
+        "SELECT si.id, si.customer_id, si.invoice_no, si.date, si.payment_mode, \
+         si.salesperson_id, si.total_amount, si.status, si.created_at, \
+         c.name as customer_name, sp.name as salesperson_name \
+         FROM sales_invoices si \
+         JOIN customers c ON c.id = si.customer_id \
+         LEFT JOIN salespersons sp ON sp.id = si.salesperson_id \
+         ORDER BY si.created_at DESC",
+    )
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    rows.iter()
+        .map(|r| {
+            Ok(SalesInvoiceRow {
+                id: r.try_get("id").map_err(|e| e.to_string())?,
+                customer_id: r.try_get("customer_id").map_err(|e| e.to_string())?,
+                invoice_no: r.try_get("invoice_no").map_err(|e| e.to_string())?,
+                date: r.try_get("date").map_err(|e| e.to_string())?,
+                payment_mode: r.try_get("payment_mode").map_err(|e| e.to_string())?,
+                salesperson_id: r.try_get("salesperson_id").map_err(|e| e.to_string())?,
+                total_amount: r.try_get("total_amount").map_err(|e| e.to_string())?,
+                status: r.try_get("status").map_err(|e| e.to_string())?,
+                created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
+                customer_name: r.try_get("customer_name").map_err(|e| e.to_string())?,
+                salesperson_name: r.try_get("salesperson_name").map_err(|e| e.to_string())?,
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+pub async fn get_sales_invoice_by_id(
+    db_instances: tauri::State<'_, DbInstances>,
+    id: i64,
+) -> Result<Option<SalesInvoiceDetail>, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let inv = sqlx::query(
+        "SELECT si.id, si.customer_id, si.invoice_no, si.date, si.payment_mode, \
+         si.salesperson_id, si.total_amount, si.status, si.created_at, \
+         c.name as customer_name, sp.name as salesperson_name \
+         FROM sales_invoices si \
+         JOIN customers c ON c.id = si.customer_id \
+         LEFT JOIN salespersons sp ON sp.id = si.salesperson_id \
+         WHERE si.id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let inv = match inv {
+        None => return Ok(None),
+        Some(r) => r,
+    };
+
+    let line_rows = sqlx::query(
+        "SELECT sil.id, sil.sales_invoice_id, sil.item_id, sil.quantity, sil.sale_price, \
+         sil.cost_price, sil.discount, sil.total, i.name as item_name \
+         FROM sales_invoice_lines sil \
+         JOIN items i ON i.id = sil.item_id \
+         WHERE sil.sales_invoice_id = ?",
+    )
+    .bind(id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let mut lines = Vec::new();
+    for lr in &line_rows {
+        let line_id: i64 = lr.try_get("id").map_err(|e| e.to_string())?;
+
+        let imei_rows = sqlx::query(
+            "SELECT iu.imei \
+             FROM sales_imei_lines sil \
+             JOIN imei_units iu ON iu.id = sil.imei_unit_id \
+             WHERE sil.sales_invoice_line_id = ?",
+        )
+        .bind(line_id)
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let imeis: Vec<String> = imei_rows
+            .iter()
+            .map(|r| r.try_get::<String, _>("imei").map_err(|e| e.to_string()))
+            .collect::<Result<_, _>>()?;
+
+        lines.push(SalesLineRow {
+            id: line_id,
+            sales_invoice_id: lr.try_get("sales_invoice_id").map_err(|e| e.to_string())?,
+            item_id: lr.try_get("item_id").map_err(|e| e.to_string())?,
+            quantity: lr.try_get("quantity").map_err(|e| e.to_string())?,
+            sale_price: lr.try_get("sale_price").map_err(|e| e.to_string())?,
+            cost_price: lr.try_get("cost_price").map_err(|e| e.to_string())?,
+            discount: lr.try_get("discount").map_err(|e| e.to_string())?,
+            total: lr.try_get("total").map_err(|e| e.to_string())?,
+            item_name: lr.try_get("item_name").map_err(|e| e.to_string())?,
+            imeis,
+        });
+    }
+
+    Ok(Some(SalesInvoiceDetail {
+        id: inv.try_get("id").map_err(|e| e.to_string())?,
+        customer_id: inv.try_get("customer_id").map_err(|e| e.to_string())?,
+        invoice_no: inv.try_get("invoice_no").map_err(|e| e.to_string())?,
+        date: inv.try_get("date").map_err(|e| e.to_string())?,
+        payment_mode: inv.try_get("payment_mode").map_err(|e| e.to_string())?,
+        salesperson_id: inv.try_get("salesperson_id").map_err(|e| e.to_string())?,
+        total_amount: inv.try_get("total_amount").map_err(|e| e.to_string())?,
+        status: inv.try_get("status").map_err(|e| e.to_string())?,
+        created_at: inv.try_get("created_at").map_err(|e| e.to_string())?,
+        customer_name: inv.try_get("customer_name").map_err(|e| e.to_string())?,
+        salesperson_name: inv.try_get("salesperson_name").map_err(|e| e.to_string())?,
+        lines,
+    }))
+}
+
+#[tauri::command]
+pub async fn get_available_imeis(
+    db_instances: tauri::State<'_, DbInstances>,
+    item_id: i64,
+) -> Result<Vec<String>, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let rows = sqlx::query(
+        "SELECT imei FROM imei_units WHERE item_id = ? AND status = 'in_stock' ORDER BY created_at",
+    )
+    .bind(item_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    rows.iter()
+        .map(|r| r.try_get::<String, _>("imei").map_err(|e| e.to_string()))
+        .collect()
 }
