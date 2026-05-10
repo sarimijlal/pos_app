@@ -207,7 +207,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
             Salesperson{' '}
             <span className="text-xs text-muted-foreground">(optional)</span>
           </Label>
-          <Select value={salespersonId} onValueChange={(v) => setSalespersonId(v === '__none' ? '' : v)}>
+          <Select value={salespersonId} onValueChange={(v) => setSalespersonId(!v || v === '__none' ? '' : v)}>
             <SelectTrigger>
               <SelectValue placeholder="None" />
             </SelectTrigger>
