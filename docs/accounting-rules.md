@@ -77,6 +77,19 @@ Credit → Inventory (1004)   [return total]
 Debit  → Cash (1001)         [return total]
 ```
 
+### 2c. Return of a Partial Purchase
+
+The debit side is split proportionally using the original invoice's `cash_amount` and
+`credit_amount` ratios.
+
+```
+Credit → Inventory (1004)                  [return total]
+Debit  → Cash (1001)                        [return total × (cash_amount / invoice_total)]
+Debit  → Accounts Payable - Supplier (*)   [return total × (credit_amount / invoice_total)]
+```
+
+`cash_ratio = cash_amount / total_amount` from the original invoice.
+
 ---
 
 ## 3. Sales Invoice
@@ -172,6 +185,7 @@ Debit  → Inventory (1004)             [same amount]
 | Partial Purchase     | Inventory                    | Cash + Accounts Payable      |
 | Credit Purchase Ret. | Accounts Payable (Supplier)  | Inventory                    |
 | Cash Purchase Ret.   | Cash                         | Inventory                    |
+| Partial Purchase Ret.| Cash + Accounts Payable      | Inventory                    |
 | Credit Sale (A)      | Accounts Receivable (Cust.)  | Sales Revenue                |
 | Cash Sale (A)        | Cash                         | Sales Revenue                |
 | Card/Bank Sale (A)   | Bank                         | Sales Revenue                |
