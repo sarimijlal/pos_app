@@ -25,6 +25,11 @@ export type ImeiLookupResult = {
   item_name: string;
   purchase_invoice_no: string;
   purchase_date: string;
+  supplier_name: string;
+  cost_price: number;
   sale_invoice_no: string | null;
   sale_date: string | null;
+  customer_name: string | null;
+  sale_price: number | null;
+  profit: number | null;
 };
