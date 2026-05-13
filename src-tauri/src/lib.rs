@@ -36,6 +36,7 @@ pub fn run() {
             commands::accounting::insert_customer,
             commands::inventory::get_items,
             commands::inventory::insert_item,
+            commands::inventory::update_item,
             commands::sales::get_salespersons,
             commands::sales::insert_salesperson,
             commands::sales::save_sales_invoice,
