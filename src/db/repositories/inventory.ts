@@ -18,6 +18,13 @@ export async function insertItem(data: {
   return invoke<number>('insert_item', { input: data });
 }
 
+export async function updateItem(input: {
+  id: number;
+  name: string;
+}): Promise<void> {
+  return invoke('update_item', { input });
+}
+
 export async function getInventoryMobiles(): Promise<MobileInventoryRow[]> {
   return invoke('get_inventory_mobiles');
 }

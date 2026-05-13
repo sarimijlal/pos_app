@@ -60,6 +60,12 @@ pub struct InsertItemInput {
     item_type: String,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateItemInput {
+    id: i64,
+    name: String,
+}
+
 #[tauri::command]
 pub async fn get_items(
     db_instances: tauri::State<'_, DbInstances>,
@@ -161,6 +167,31 @@ async fn do_insert_item(
     }
 
     Ok(item_id)
+}
+
+#[tauri::command]
+pub async fn update_item(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: UpdateItemInput,
+) -> Result<(), String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    sqlx::query("UPDATE items SET name = ? WHERE id = ?")
+        .bind(&input.name)
+        .bind(input.id)
+        .execute(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 // ─── Inventory read commands ──────────────────────────────────────────────────

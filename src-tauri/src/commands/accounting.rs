@@ -57,10 +57,19 @@ pub struct SupplierRow {
     payable_account_id: i64,
     is_active: i64,
     created_at: String,
+    balance: f64,
 }
 
 #[derive(Deserialize)]
 pub struct InsertSupplierInput {
+    name: String,
+    phone: Option<String>,
+    address: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateSupplierInput {
+    id: i64,
     name: String,
     phone: Option<String>,
     address: Option<String>,
@@ -74,6 +83,14 @@ pub struct CustomerRow {
     receivable_account_id: i64,
     is_active: i64,
     created_at: String,
+    balance: f64,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateCustomerInput {
+    id: i64,
+    name: String,
+    phone: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -99,8 +116,13 @@ pub async fn get_suppliers(
     };
 
     let rows = sqlx::query(
-        "SELECT id, name, phone, address, payable_account_id, is_active, created_at \
-         FROM suppliers WHERE is_active = 1 ORDER BY name",
+        "SELECT s.id, s.name, s.phone, s.address, s.payable_account_id, s.is_active, s.created_at, \
+                COALESCE(SUM(jel.credit) - SUM(jel.debit), 0.0) as balance \
+         FROM suppliers s \
+         LEFT JOIN journal_entry_lines jel ON jel.account_id = s.payable_account_id \
+         WHERE s.is_active = 1 \
+         GROUP BY s.id \
+         ORDER BY s.name",
     )
     .fetch_all(&pool)
     .await
@@ -118,6 +140,7 @@ pub async fn get_suppliers(
                     .map_err(|e| e.to_string())?,
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
+                balance: r.try_get("balance").map_err(|e| e.to_string())?,
             })
         })
         .collect()
@@ -214,8 +237,13 @@ pub async fn get_customers(
     };
 
     let rows = sqlx::query(
-        "SELECT id, name, phone, receivable_account_id, is_active, created_at \
-         FROM customers WHERE is_active = 1 ORDER BY name",
+        "SELECT c.id, c.name, c.phone, c.receivable_account_id, c.is_active, c.created_at, \
+                COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) as balance \
+         FROM customers c \
+         LEFT JOIN journal_entry_lines jel ON jel.account_id = c.receivable_account_id \
+         WHERE c.is_active = 1 \
+         GROUP BY c.id \
+         ORDER BY c.name",
     )
     .fetch_all(&pool)
     .await
@@ -232,6 +260,7 @@ pub async fn get_customers(
                     .map_err(|e| e.to_string())?,
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
+                balance: r.try_get("balance").map_err(|e| e.to_string())?,
             })
         })
         .collect()
@@ -308,6 +337,125 @@ async fn do_insert_customer(
     .map_err(|e| e.to_string())?;
 
     Ok(res.last_insert_rowid())
+}
+
+// ─── Update commands ─────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn update_supplier(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: UpdateSupplierInput,
+) -> Result<(), String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+    match do_update_supplier(&mut tx, input).await {
+        Ok(()) => {
+            tx.commit().await.map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    }
+}
+
+async fn do_update_supplier(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    input: UpdateSupplierInput,
+) -> Result<(), String> {
+    let row = sqlx::query("SELECT payable_account_id FROM suppliers WHERE id = ?")
+        .bind(input.id)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    let account_id: i64 = row.try_get("payable_account_id").map_err(|e| e.to_string())?;
+
+    sqlx::query("UPDATE suppliers SET name = ?, phone = ?, address = ? WHERE id = ?")
+        .bind(&input.name)
+        .bind(input.phone.as_deref())
+        .bind(input.address.as_deref())
+        .bind(input.id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("UPDATE accounts SET name = ? WHERE id = ?")
+        .bind(format!("Payable \u{2014} {}", input.name))
+        .bind(account_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn update_customer(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: UpdateCustomerInput,
+) -> Result<(), String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+    match do_update_customer(&mut tx, input).await {
+        Ok(()) => {
+            tx.commit().await.map_err(|e| e.to_string())?;
+            Ok(())
+        }
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    }
+}
+
+async fn do_update_customer(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    input: UpdateCustomerInput,
+) -> Result<(), String> {
+    let row = sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+        .bind(input.id)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    let account_id: i64 = row.try_get("receivable_account_id").map_err(|e| e.to_string())?;
+
+    sqlx::query("UPDATE customers SET name = ?, phone = ? WHERE id = ?")
+        .bind(&input.name)
+        .bind(input.phone.as_deref())
+        .bind(input.id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query("UPDATE accounts SET name = ? WHERE id = ?")
+        .bind(format!("Receivable \u{2014} {}", input.name))
+        .bind(account_id)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 // ─── Chart of Accounts ────────────────────────────────────────────────────────
