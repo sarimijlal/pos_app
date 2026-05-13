@@ -25,6 +25,23 @@ export async function insertCustomer(data: {
   return invoke<number>('insert_customer', { input: data });
 }
 
+export async function updateSupplier(input: {
+  id: number;
+  name: string;
+  phone?: string;
+  address?: string;
+}): Promise<void> {
+  return invoke('update_supplier', { input });
+}
+
+export async function updateCustomer(input: {
+  id: number;
+  name: string;
+  phone?: string;
+}): Promise<void> {
+  return invoke('update_customer', { input });
+}
+
 export async function getAccounts(): Promise<AccountRow[]> {
   return invoke('get_accounts');
 }

@@ -48,6 +48,8 @@ pub fn run() {
             commands::inventory::get_inventory_accessories,
             commands::inventory::get_item_imeis,
             commands::inventory::lookup_imei,
+            commands::accounting::update_supplier,
+            commands::accounting::update_customer,
             commands::accounting::get_accounts,
             commands::accounting::insert_account,
             commands::accounting::get_dashboard_summary,
