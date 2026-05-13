@@ -6,6 +6,7 @@ export type Supplier = {
   payable_account_id: number;
   is_active: number;
   created_at: string;
+  balance: number;
 };
 
 export type Customer = {
@@ -15,6 +16,7 @@ export type Customer = {
   receivable_account_id: number;
   is_active: number;
   created_at: string;
+  balance: number;
 };
 
 export type Item = {
