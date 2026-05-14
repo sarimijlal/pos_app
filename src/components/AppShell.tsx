@@ -634,10 +634,13 @@ export function AppShell({
         {/* Stage — screen content renders here */}
         <div style={{
           flex: 1, minHeight: 0,
-          padding: 22,
-          background: 'repeating-linear-gradient(45deg, transparent 0 22px, rgba(15,15,16,0.025) 22px 23px)',
+          padding: section === 'dashboard' ? '18px 22px 28px' : 22,
+          gap: section === 'dashboard' ? 18 : 14,
+          background: section === 'dashboard'
+            ? '#fafaf9'
+            : 'repeating-linear-gradient(45deg, transparent 0 22px, rgba(15,15,16,0.025) 22px 23px)',
           overflowY: 'auto',
-          display: 'flex', flexDirection: 'column', gap: 14,
+          display: 'flex', flexDirection: 'column',
         }}>
           {children}
         </div>
