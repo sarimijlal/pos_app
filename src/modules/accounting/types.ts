@@ -5,6 +5,7 @@ export type AccountRow = {
   type: string;
   parent_id: number | null;
   is_active: number;
+  balance: number;
 };
 
 export type InsertAccountInput = {

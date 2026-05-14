@@ -13,6 +13,7 @@ pub struct AccountRow {
     account_type: String,
     parent_id: Option<i64>,
     is_active: i64,
+    balance: f64,
 }
 
 #[derive(Deserialize)]
@@ -478,8 +479,12 @@ pub async fn get_accounts(
     };
 
     let rows = sqlx::query(
-        "SELECT id, code, name, type, parent_id, is_active \
-         FROM accounts ORDER BY code",
+        "SELECT a.id, a.code, a.name, a.type, a.parent_id, a.is_active, \
+                COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) AS balance \
+         FROM accounts a \
+         LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id \
+         GROUP BY a.id \
+         ORDER BY a.code",
     )
     .fetch_all(&pool)
     .await
@@ -494,6 +499,7 @@ pub async fn get_accounts(
                 account_type: r.try_get("type").map_err(|e| e.to_string())?,
                 parent_id: r.try_get("parent_id").map_err(|e| e.to_string())?,
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
+                balance: r.try_get("balance").map_err(|e| e.to_string())?,
             })
         })
         .collect()
