@@ -236,6 +236,25 @@ function CmdResultItem({
   );
 }
 
+// ── Stage wrapper ─────────────────────────────────────────────────────────
+function Stage({ section, children }: { section: Section; children: ReactNode }) {
+  const fullBleed = ['sales-new', 'purchase-new', 'sales-return', 'purchase-return'].includes(section);
+  return (
+    <div style={{
+      flex: 1, minHeight: 0,
+      padding: section === 'dashboard' ? '18px 22px 28px' : fullBleed ? 0 : 22,
+      gap: section === 'dashboard' ? 18 : fullBleed ? 0 : 14,
+      background: (section === 'dashboard' || fullBleed)
+        ? '#fafaf9'
+        : 'repeating-linear-gradient(45deg, transparent 0 22px, rgba(15,15,16,0.025) 22px 23px)',
+      overflowY: 'auto',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {children}
+    </div>
+  );
+}
+
 // ── AppShell ───────────────────────────────────────────────────────────────
 export function AppShell({
   section,
@@ -632,18 +651,7 @@ export function AppShell({
         </div>
 
         {/* Stage — screen content renders here */}
-        <div style={{
-          flex: 1, minHeight: 0,
-          padding: section === 'dashboard' ? '18px 22px 28px' : 22,
-          gap: section === 'dashboard' ? 18 : 14,
-          background: section === 'dashboard'
-            ? '#fafaf9'
-            : 'repeating-linear-gradient(45deg, transparent 0 22px, rgba(15,15,16,0.025) 22px 23px)',
-          overflowY: 'auto',
-          display: 'flex', flexDirection: 'column',
-        }}>
-          {children}
-        </div>
+        <Stage section={section}>{children}</Stage>
       </div>
 
       {/* ═══ COMMAND PALETTE ══════════════════════════════════════════════ */}

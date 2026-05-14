@@ -161,3 +161,28 @@
   scrollbar-width: thin;
   scrollbar-color: #d6d6d2 transparent;
 }
+
+/* ── Sales Form — header inputs ── */
+.sf-input:focus {
+  border-color: #1f3a8a !important;
+  box-shadow: 0 0 0 3px rgba(31,58,138,0.18) !important;
+  outline: none;
+}
+.sf-textarea:focus {
+  border-color: #1f3a8a !important;
+  box-shadow: 0 0 0 3px rgba(31,58,138,0.18) !important;
+  outline: none;
+}
+/* ── Sales Form — table cell inputs ── */
+.sf-cell:focus {
+  background: #f4f5f9 !important;
+  box-shadow: inset 0 0 0 2px #1f3a8a !important;
+  outline: none;
+}
+.sf-cell-ro:focus {
+  outline: none;
+}
+/* hide number spinners */
+.sf-cell::-webkit-outer-spin-button,
+.sf-cell::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.sf-cell[type=number] { -moz-appearance: textfield; }

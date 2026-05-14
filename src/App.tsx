@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getDb } from './db/client';
 import { AppShell, type Section } from './components/AppShell';
 import { DashboardScreen } from './modules/dashboard/DashboardScreen';
+import { SalesForm } from './modules/sales/components/SalesForm';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
   return (
@@ -44,7 +45,7 @@ function App() {
   return (
     <AppShell section={section} onNavigate={navigate}>
       {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
-      {section === 'sales-new'         && <PlaceholderScreen title="New Sales Invoice"      section="Screen 03 — Sales Invoice Form" />}
+      {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('dashboard')} />}
       {section === 'sales-list'        && <PlaceholderScreen title="Sales List"             section="Screen 05 — Sales List" />}
       {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
       {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
