@@ -512,7 +512,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
           <span style={{ width: 3, height: 3, background: C.muted2, borderRadius: '50%', display: 'inline-block' }} />
           <span>Posts <b style={{ color: C.ink2, fontWeight: 500 }}>journal_entries</b> on save</span>
           <span style={{ width: 3, height: 3, background: C.muted2, borderRadius: '50%', display: 'inline-block' }} />
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Kbd>⌘S</Kbd> save</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Kbd>Ctrl+S</Kbd> save</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Kbd>Esc</Kbd> cancel</span>
         </div>
       </div>
@@ -747,7 +747,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
 
           <div style={{ marginTop: 6, paddingTop: 12, borderTop: `1px solid ${C.line}`, display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1, fontSize: 11, color: C.muted }}>
-              <Kbd>⌘S</Kbd> Save · <Kbd>⌘⇧S</Kbd> Save &amp; print · <Kbd>Esc</Kbd> Cancel
+              <Kbd>Ctrl+S</Kbd> Save · <Kbd>Ctrl+Shift+S</Kbd> Save &amp; print · <Kbd>Esc</Kbd> Cancel
             </div>
             <button type="button" onClick={onCancel}
               style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, border: `1px solid ${C.line2}`, cursor: 'pointer', background: C.paper, color: C.ink }}
@@ -757,7 +757,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
             <button type="button" onClick={handleSave} disabled={saving}
               style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: saving ? '#8a9ec0' : C.accent, color: C.accentFg, border: 'none', cursor: saving ? 'not-allowed' : 'pointer' }}
             >
-              {saving ? 'Saving…' : <><span>Save invoice</span><Kbd>⌘S</Kbd></>}
+              {saving ? 'Saving…' : <><span>Save invoice</span><Kbd>Ctrl+S</Kbd></>}
             </button>
           </div>
           {error && <p style={{ fontSize: 12, color: C.bad, margin: 0 }}>{error}</p>}

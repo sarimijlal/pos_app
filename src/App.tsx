@@ -3,6 +3,7 @@ import { getDb } from './db/client';
 import { AppShell, type Section } from './components/AppShell';
 import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
+import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
   return (
@@ -49,7 +50,7 @@ function App() {
       {section === 'sales-list'        && <PlaceholderScreen title="Sales List"             section="Screen 05 — Sales List" />}
       {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
       {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
-      {section === 'purchase-new'      && <PlaceholderScreen title="New Purchase Invoice"   section="Screen 04 — Purchase Invoice Form" />}
+      {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
       {section === 'purchase-list'     && <PlaceholderScreen title="Purchase List"          section="Screen 06 — Purchase List" />}
       {section === 'purchase-detail'   && <PlaceholderScreen title="Purchase Invoice Detail" section="Screen 06 — Purchase List (detail)" />}
       {section === 'purchase-return'   && <PlaceholderScreen title="Purchase Return"        section="Screen 08 — Purchase Return Form" />}
