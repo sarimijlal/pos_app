@@ -1,115 +1,65 @@
 import { useState, useEffect } from 'react';
 import { getDb } from './db/client';
-import { PurchaseTable } from './modules/purchase/components/PurchaseTable';
-import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
-import { PurchaseDetailPanel } from './modules/purchase/components/PurchaseDetailPanel';
-import { SalesTable } from './modules/sales/components/SalesTable';
+import { AppShell, type Section } from './components/AppShell';
+import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
-import { SalesDetailPanel } from './modules/sales/components/SalesDetailPanel';
-import { PartiesScreen } from './modules/master-data/components/PartiesScreen';
-import { ItemsScreen } from './modules/master-data/components/ItemsScreen';
+import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
 
-type Section =
-  | 'purchase-list' | 'purchase-new' | 'purchase-detail'
-  | 'sales-list'    | 'sales-new'    | 'sales-detail'
-  | 'master-parties' | 'master-items';
-
-const NAV: { label: string; section: Section }[] = [
-  { label: 'Purchases', section: 'purchase-list' },
-  { label: 'Sales', section: 'sales-list' },
-  { label: 'Suppliers & Customers', section: 'master-parties' },
-  { label: 'Items', section: 'master-items' },
-];
+function PlaceholderScreen({ title, section }: { title: string; section: string }) {
+  return (
+    <div style={{
+      flex: 1, minHeight: 320,
+      border: '1.5px dashed #d6d6d2',
+      borderRadius: 6,
+      display: 'grid', placeItems: 'center',
+      background: '#fff',
+      color: '#9a9aa0',
+      textAlign: 'center', padding: 28,
+    }}>
+      <div>
+        <div style={{
+          fontFamily: "'Inter Variable', 'Inter', sans-serif",
+          fontSize: 28, color: '#6b6b70', lineHeight: 1, marginBottom: 10,
+        }}>↘ {title}</div>
+        <div style={{ fontSize: 12, color: '#9a9aa0', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 18 }}>
+          screen content · coming soon
+        </div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6b6b70',
+          border: '1px solid #e5e5e3', borderRadius: 4, padding: '4px 8px',
+          background: '#f7f7f5', display: 'inline-block',
+        }}>{section}</div>
+      </div>
+    </div>
+  );
+}
 
 function App() {
-  const [section, setSection] = useState<Section>('purchase-list');
-  // Incrementing these keys forces the form to remount fresh on "New Invoice".
-  // Between key increments the form stays mounted but hidden, preserving mid-fill state.
-  const [purchaseDraftKey, setPurchaseDraftKey] = useState(0);
-  const [salesDraftKey, setSalesDraftKey] = useState(0);
+  const [section, setSection] = useState<Section>('dashboard');
 
   useEffect(() => {
     getDb().catch(console.error);
   }, []);
 
+  const navigate = (s: Section) => setSection(s);
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Temporary top nav — replaced by App Shell in step 10 */}
-      <nav className="flex items-center gap-1 border-b px-4 py-2">
-        <span className="mr-4 font-bold text-sm">POS</span>
-        {NAV.map((item) => (
-          <button
-            key={item.section}
-            onClick={() => setSection(item.section)}
-            className={[
-              'rounded px-3 py-1.5 text-sm transition-colors',
-              section.startsWith(item.section.split('-')[0])
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            ].join(' ')}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
-
-      <main className="mx-auto w-full max-w-5xl flex-1 p-6">
-        {(section === 'purchase-list' || section === 'purchase-detail') && (
-          <>
-            {section === 'purchase-list' && (
-              <PurchaseTable
-                onNew={() => { setPurchaseDraftKey((k) => k + 1); setSection('purchase-new'); }}
-                onSelect={() => setSection('purchase-detail')}
-              />
-            )}
-            {section === 'purchase-detail' && (
-              <PurchaseDetailPanel
-                onClose={() => setSection('purchase-list')}
-                onReturned={() => setSection('purchase-list')}
-              />
-            )}
-          </>
-        )}
-
-        {/* Keep purchase form mounted while on any purchase section so mid-fill state survives tab switches */}
-        <div className={section === 'purchase-new' ? '' : 'hidden'}>
-          <PurchaseForm
-            key={purchaseDraftKey}
-            onSaved={() => setSection('purchase-list')}
-            onCancel={() => setSection('purchase-list')}
-          />
-        </div>
-
-        {(section === 'sales-list' || section === 'sales-detail') && (
-          <>
-            {section === 'sales-list' && (
-              <SalesTable
-                onNew={() => { setSalesDraftKey((k) => k + 1); setSection('sales-new'); }}
-                onSelect={() => setSection('sales-detail')}
-              />
-            )}
-            {section === 'sales-detail' && (
-              <SalesDetailPanel
-                onClose={() => setSection('sales-list')}
-                onReturned={() => setSection('sales-list')}
-              />
-            )}
-          </>
-        )}
-
-        {/* Keep sales form mounted while on any sales section so mid-fill state survives tab switches */}
-        <div className={section === 'sales-new' ? '' : 'hidden'}>
-          <SalesForm
-            key={salesDraftKey}
-            onSaved={() => setSection('sales-list')}
-            onCancel={() => setSection('sales-list')}
-          />
-        </div>
-
-        {section === 'master-parties' && <PartiesScreen />}
-        {section === 'master-items' && <ItemsScreen />}
-      </main>
-    </div>
+    <AppShell section={section} onNavigate={navigate}>
+      {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
+      {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('dashboard')} />}
+      {section === 'sales-list'        && <PlaceholderScreen title="Sales List"             section="Screen 05 — Sales List" />}
+      {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
+      {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
+      {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
+      {section === 'purchase-list'     && <PlaceholderScreen title="Purchase List"          section="Screen 06 — Purchase List" />}
+      {section === 'purchase-detail'   && <PlaceholderScreen title="Purchase Invoice Detail" section="Screen 06 — Purchase List (detail)" />}
+      {section === 'purchase-return'   && <PlaceholderScreen title="Purchase Return"        section="Screen 08 — Purchase Return Form" />}
+      {section === 'inventory-stock'   && <PlaceholderScreen title="Inventory · Stock"      section="Screen 09 — Inventory List" />}
+      {section === 'inventory-imei'    && <PlaceholderScreen title="IMEI Lookup"            section="Screen 10 — IMEI Lookup" />}
+      {section === 'accounts-ledger'   && <PlaceholderScreen title="Chart of Accounts"      section="Screen 13 — Chart of Accounts" />}
+      {section === 'master-parties'    && <PlaceholderScreen title="Suppliers & Customers"  section="Screen 11 — Parties" />}
+      {section === 'master-items'      && <PlaceholderScreen title="Items Master"           section="Screen 12 — Items Master" />}
+    </AppShell>
   );
 }
 

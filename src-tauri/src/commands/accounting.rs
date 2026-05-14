@@ -13,6 +13,7 @@ pub struct AccountRow {
     account_type: String,
     parent_id: Option<i64>,
     is_active: i64,
+    balance: f64,
 }
 
 #[derive(Deserialize)]
@@ -44,6 +45,9 @@ pub struct RecentEntry {
 pub struct DashboardSummary {
     today_sales: f64,
     today_purchases: f64,
+    cash_in_hand: f64,
+    total_receivables: f64,
+    receivable_customers: i64,
     low_stock: Vec<LowStockItem>,
     recent_entries: Vec<RecentEntry>,
 }
@@ -475,8 +479,12 @@ pub async fn get_accounts(
     };
 
     let rows = sqlx::query(
-        "SELECT id, code, name, type, parent_id, is_active \
-         FROM accounts ORDER BY code",
+        "SELECT a.id, a.code, a.name, a.type, a.parent_id, a.is_active, \
+                COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) AS balance \
+         FROM accounts a \
+         LEFT JOIN journal_entry_lines jel ON jel.account_id = a.id \
+         GROUP BY a.id \
+         ORDER BY a.code",
     )
     .fetch_all(&pool)
     .await
@@ -491,6 +499,7 @@ pub async fn get_accounts(
                 account_type: r.try_get("type").map_err(|e| e.to_string())?,
                 parent_id: r.try_get("parent_id").map_err(|e| e.to_string())?,
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
+                balance: r.try_get("balance").map_err(|e| e.to_string())?,
             })
         })
         .collect()
@@ -624,9 +633,51 @@ pub async fn get_dashboard_summary(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
+    // Cash in hand — running balance of account 1001
+    let cash_row = sqlx::query(
+        "SELECT COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) AS balance \
+         FROM journal_entry_lines jel \
+         JOIN accounts a ON a.id = jel.account_id \
+         WHERE a.code = '1001'",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let cash_in_hand: f64 = cash_row.try_get("balance").map_err(|e| e.to_string())?;
+
+    // Total receivables — sum across all customer receivable accounts
+    let recv_row = sqlx::query(
+        "SELECT COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) AS balance \
+         FROM journal_entry_lines jel \
+         WHERE jel.account_id IN (SELECT receivable_account_id FROM customers)",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let total_receivables: f64 = recv_row.try_get("balance").map_err(|e| e.to_string())?;
+
+    // Count of customers with a positive outstanding balance
+    let recv_cust_row = sqlx::query(
+        "SELECT COUNT(*) AS count \
+         FROM ( \
+           SELECT c.id \
+           FROM customers c \
+           JOIN journal_entry_lines jel ON jel.account_id = c.receivable_account_id \
+           GROUP BY c.id \
+           HAVING SUM(jel.debit) - SUM(jel.credit) > 0 \
+         ) sub",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let receivable_customers: i64 = recv_cust_row.try_get("count").map_err(|e| e.to_string())?;
+
     Ok(DashboardSummary {
         today_sales,
         today_purchases,
+        cash_in_hand,
+        total_receivables,
+        receivable_customers,
         low_stock,
         recent_entries,
     })
