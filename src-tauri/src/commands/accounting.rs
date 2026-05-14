@@ -44,6 +44,9 @@ pub struct RecentEntry {
 pub struct DashboardSummary {
     today_sales: f64,
     today_purchases: f64,
+    cash_in_hand: f64,
+    total_receivables: f64,
+    receivable_customers: i64,
     low_stock: Vec<LowStockItem>,
     recent_entries: Vec<RecentEntry>,
 }
@@ -624,9 +627,51 @@ pub async fn get_dashboard_summary(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
+    // Cash in hand — running balance of account 1001
+    let cash_row = sqlx::query(
+        "SELECT COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) AS balance \
+         FROM journal_entry_lines jel \
+         JOIN accounts a ON a.id = jel.account_id \
+         WHERE a.code = '1001'",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let cash_in_hand: f64 = cash_row.try_get("balance").map_err(|e| e.to_string())?;
+
+    // Total receivables — sum across all customer receivable accounts
+    let recv_row = sqlx::query(
+        "SELECT COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) AS balance \
+         FROM journal_entry_lines jel \
+         WHERE jel.account_id IN (SELECT receivable_account_id FROM customers)",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let total_receivables: f64 = recv_row.try_get("balance").map_err(|e| e.to_string())?;
+
+    // Count of customers with a positive outstanding balance
+    let recv_cust_row = sqlx::query(
+        "SELECT COUNT(*) AS count \
+         FROM ( \
+           SELECT c.id \
+           FROM customers c \
+           JOIN journal_entry_lines jel ON jel.account_id = c.receivable_account_id \
+           GROUP BY c.id \
+           HAVING SUM(jel.debit) - SUM(jel.credit) > 0 \
+         ) sub",
+    )
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let receivable_customers: i64 = recv_cust_row.try_get("count").map_err(|e| e.to_string())?;
+
     Ok(DashboardSummary {
         today_sales,
         today_purchases,
+        cash_in_hand,
+        total_receivables,
+        receivable_customers,
         low_stock,
         recent_entries,
     })

@@ -32,6 +32,9 @@ export type RecentEntry = {
 export type DashboardSummary = {
   today_sales: number;
   today_purchases: number;
+  cash_in_hand: number;
+  total_receivables: number;
+  receivable_customers: number;
   low_stock: LowStockItem[];
   recent_entries: RecentEntry[];
 };
