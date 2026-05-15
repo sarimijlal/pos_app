@@ -3,6 +3,7 @@ import { getDb } from './db/client';
 import { AppShell, type Section } from './components/AppShell';
 import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
+import { SalesListScreen } from './modules/sales/components/SalesListScreen';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
@@ -47,7 +48,7 @@ function App() {
     <AppShell section={section} onNavigate={navigate}>
       {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
       {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('dashboard')} />}
-      {section === 'sales-list'        && <PlaceholderScreen title="Sales List"             section="Screen 05 — Sales List" />}
+      {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={() => navigate('sales-detail')} onReturn={() => navigate('sales-return')} />}
       {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
       {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
       {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
