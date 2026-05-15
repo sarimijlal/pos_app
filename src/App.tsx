@@ -5,6 +5,7 @@ import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
 import { SalesListScreen } from './modules/sales/components/SalesListScreen';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
+import { PurchaseListScreen } from './modules/purchase/components/PurchaseListScreen';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
   return (
@@ -52,7 +53,7 @@ function App() {
       {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
       {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
       {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
-      {section === 'purchase-list'     && <PlaceholderScreen title="Purchase List"          section="Screen 06 — Purchase List" />}
+      {section === 'purchase-list'     && <PurchaseListScreen onNew={() => navigate('purchase-new')} onViewDetail={() => navigate('purchase-detail')} onReturn={() => navigate('purchase-return')} />}
       {section === 'purchase-detail'   && <PlaceholderScreen title="Purchase Invoice Detail" section="Screen 06 — Purchase List (detail)" />}
       {section === 'purchase-return'   && <PlaceholderScreen title="Purchase Return"        section="Screen 08 — Purchase Return Form" />}
       {section === 'inventory-stock'   && <PlaceholderScreen title="Inventory · Stock"      section="Screen 09 — Inventory List" />}
