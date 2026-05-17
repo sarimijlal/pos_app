@@ -262,7 +262,7 @@ export function AppShell({
   children,
 }: {
   section: Section;
-  onNavigate: (s: Section) => void;
+  onNavigate: (s: Section, id?: number) => void;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(() => {

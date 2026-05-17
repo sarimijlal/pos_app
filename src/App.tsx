@@ -4,8 +4,10 @@ import { AppShell, type Section } from './components/AppShell';
 import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
 import { SalesListScreen } from './modules/sales/components/SalesListScreen';
+import { SalesInvoiceDetailScreen } from './modules/sales/components/SalesInvoiceDetailScreen';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
 import { PurchaseListScreen } from './modules/purchase/components/PurchaseListScreen';
+import { PurchaseInvoiceDetailScreen } from './modules/purchase/components/PurchaseInvoiceDetailScreen';
 import { PurchaseReturnForm } from './modules/purchase/components/PurchaseReturnForm';
 import { SalesReturnForm } from './modules/sales/components/SalesReturnForm';
 
@@ -40,23 +42,36 @@ function PlaceholderScreen({ title, section }: { title: string; section: string 
 
 function App() {
   const [section, setSection] = useState<Section>('dashboard');
+  const [dbReady, setDbReady] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
 
   useEffect(() => {
-    getDb().catch(console.error);
+    getDb().then(() => setDbReady(true)).catch(console.error);
   }, []);
 
-  const navigate = (s: Section) => setSection(s);
+  const navigate = (s: Section, id?: number) => {
+    setSection(s);
+    if (id !== undefined) setSelectedInvoiceId(id);
+  };
+
+  if (!dbReady) {
+    return (
+      <div style={{ height: '100vh', display: 'grid', placeItems: 'center', background: '#fafaf9', color: '#9a9aa0', fontFamily: "'Inter Variable','Inter',sans-serif", fontSize: 13 }}>
+        Initialising…
+      </div>
+    );
+  }
 
   return (
     <AppShell section={section} onNavigate={navigate}>
       {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
       {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('dashboard')} />}
-      {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={() => navigate('sales-detail')} onReturn={() => navigate('sales-return')} />}
-      {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
+      {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={(id) => navigate('sales-detail', id)} onReturn={() => navigate('sales-return')} />}
+      {section === 'sales-detail'      && <SalesInvoiceDetailScreen invoiceId={selectedInvoiceId} onBack={() => navigate('sales-list')} />}
       {section === 'sales-return'      && <SalesReturnForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('sales-list')} />}
       {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
-      {section === 'purchase-list'     && <PurchaseListScreen onNew={() => navigate('purchase-new')} onViewDetail={() => navigate('purchase-detail')} onReturn={() => navigate('purchase-return')} />}
-      {section === 'purchase-detail'   && <PlaceholderScreen title="Purchase Invoice Detail" section="Screen 06 — Purchase List (detail)" />}
+      {section === 'purchase-list'     && <PurchaseListScreen onNew={() => navigate('purchase-new')} onViewDetail={(id) => navigate('purchase-detail', id)} onReturn={() => navigate('purchase-return')} />}
+      {section === 'purchase-detail'   && <PurchaseInvoiceDetailScreen invoiceId={selectedInvoiceId} onBack={() => navigate('purchase-list')} />}
       {section === 'purchase-return'   && <PurchaseReturnForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('purchase-list')} />}
       {section === 'inventory-stock'   && <PlaceholderScreen title="Inventory · Stock"      section="Screen 09 — Inventory List" />}
       {section === 'inventory-imei'    && <PlaceholderScreen title="IMEI Lookup"            section="Screen 10 — IMEI Lookup" />}

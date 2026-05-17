@@ -27,6 +27,7 @@ export type RecentEntry = {
   reference_no: string;
   narration: string;
   source_type: string;
+  source_id: number;
   total_debit: number;
 };
 

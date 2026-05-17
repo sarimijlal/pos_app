@@ -38,6 +38,7 @@ pub struct RecentEntry {
     reference_no: String,
     narration: String,
     source_type: String,
+    source_id: i64,
     total_debit: f64,
 }
 
@@ -623,7 +624,7 @@ pub async fn get_dashboard_summary(
         .collect::<Result<Vec<_>, String>>()?;
 
     let entries_sql = format!(
-        "SELECT je.id, je.date, je.reference_no, je.narration, je.source_type, \
+        "SELECT je.id, je.date, je.reference_no, je.narration, je.source_type, je.source_id, \
                 SUM(jel.debit) as total_debit \
          FROM journal_entries je \
          JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id \
@@ -652,6 +653,9 @@ pub async fn get_dashboard_summary(
                     .map_err(|e: sqlx::Error| e.to_string())?,
                 source_type: r
                     .try_get("source_type")
+                    .map_err(|e: sqlx::Error| e.to_string())?,
+                source_id: r
+                    .try_get("source_id")
                     .map_err(|e: sqlx::Error| e.to_string())?,
                 total_debit: r
                     .try_get("total_debit")
