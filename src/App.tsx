@@ -10,6 +10,8 @@ import { PurchaseListScreen } from './modules/purchase/components/PurchaseListSc
 import { PurchaseInvoiceDetailScreen } from './modules/purchase/components/PurchaseInvoiceDetailScreen';
 import { PurchaseReturnForm } from './modules/purchase/components/PurchaseReturnForm';
 import { SalesReturnForm } from './modules/sales/components/SalesReturnForm';
+import { InventoryListScreen } from './modules/inventory/components/InventoryListScreen';
+import { ImeiLookupScreen } from './modules/inventory/components/ImeiLookupScreen';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
   return (
@@ -44,6 +46,7 @@ function App() {
   const [section, setSection] = useState<Section>('dashboard');
   const [dbReady, setDbReady] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [selectedImei, setSelectedImei] = useState<string | null>(null);
 
   useEffect(() => {
     getDb().then(() => setDbReady(true)).catch(console.error);
@@ -73,8 +76,8 @@ function App() {
       {section === 'purchase-list'     && <PurchaseListScreen onNew={() => navigate('purchase-new')} onViewDetail={(id) => navigate('purchase-detail', id)} onReturn={(id) => navigate('purchase-return', id)} />}
       {section === 'purchase-detail'   && <PurchaseInvoiceDetailScreen invoiceId={selectedInvoiceId} onBack={() => navigate('purchase-list')} />}
       {section === 'purchase-return'   && <PurchaseReturnForm initialInvoiceId={selectedInvoiceId} onSaved={() => navigate('purchase-list')} onCancel={() => navigate('purchase-list')} />}
-      {section === 'inventory-stock'   && <PlaceholderScreen title="Inventory · Stock"      section="Screen 09 — Inventory List" />}
-      {section === 'inventory-imei'    && <PlaceholderScreen title="IMEI Lookup"            section="Screen 10 — IMEI Lookup" />}
+      {section === 'inventory-stock'   && <InventoryListScreen onViewImei={(imei) => { setSelectedImei(imei); setSection('inventory-imei'); }} />}
+      {section === 'inventory-imei'    && <ImeiLookupScreen initialImei={selectedImei} onNavigate={navigate} />}
       {section === 'accounts-ledger'   && <PlaceholderScreen title="Chart of Accounts"      section="Screen 13 — Chart of Accounts" />}
       {section === 'master-parties'    && <PlaceholderScreen title="Suppliers & Customers"  section="Screen 11 — Parties" />}
       {section === 'master-items'      && <PlaceholderScreen title="Items Master"           section="Screen 12 — Items Master" />}

@@ -33,10 +33,12 @@ pub struct ImeiLookupResult {
     imei: String,
     status: String,
     item_name: String,
+    purchase_invoice_id: i64,
     purchase_invoice_no: String,
     purchase_date: String,
     supplier_name: String,
     cost_price: f64,
+    sale_invoice_id: Option<i64>,
     sale_invoice_no: Option<String>,
     sale_date: Option<String>,
     customer_name: Option<String>,
@@ -330,10 +332,12 @@ pub async fn lookup_imei(
         "SELECT \
            iu.imei, iu.status, \
            it.name as item_name, \
+           pi.id as purchase_invoice_id, \
            pi.invoice_no as purchase_invoice_no, \
            pi.invoice_date as purchase_date, \
            sup.name as supplier_name, \
            pil.rate as cost_price, \
+           si.id as sale_invoice_id, \
            si.invoice_no as sale_invoice_no, \
            si.date as sale_date, \
            cus.name as customer_name, \
@@ -364,12 +368,14 @@ pub async fn lookup_imei(
                 imei: r.try_get("imei").map_err(|e| e.to_string())?,
                 status: r.try_get("status").map_err(|e| e.to_string())?,
                 item_name: r.try_get("item_name").map_err(|e| e.to_string())?,
+                purchase_invoice_id: r.try_get("purchase_invoice_id").map_err(|e| e.to_string())?,
                 purchase_invoice_no: r
                     .try_get("purchase_invoice_no")
                     .map_err(|e| e.to_string())?,
                 purchase_date: r.try_get("purchase_date").map_err(|e| e.to_string())?,
                 supplier_name: r.try_get("supplier_name").map_err(|e| e.to_string())?,
                 cost_price,
+                sale_invoice_id: r.try_get("sale_invoice_id").map_err(|e| e.to_string())?,
                 sale_invoice_no: r.try_get("sale_invoice_no").map_err(|e| e.to_string())?,
                 sale_date: r.try_get("sale_date").map_err(|e| e.to_string())?,
                 customer_name: r.try_get("customer_name").map_err(|e| e.to_string())?,
