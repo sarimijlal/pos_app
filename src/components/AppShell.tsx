@@ -259,10 +259,14 @@ function Stage({ section, children }: { section: Section; children: ReactNode })
 export function AppShell({
   section,
   onNavigate,
+  canGoBack = false,
+  onGoBack,
   children,
 }: {
   section: Section;
   onNavigate: (s: Section, id?: number) => void;
+  canGoBack?: boolean;
+  onGoBack?: () => void;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(() => {
@@ -580,6 +584,17 @@ export function AppShell({
           display: 'flex', alignItems: 'center', padding: '0 20px',
           background: '#fff', gap: 16,
         }}>
+          {canGoBack && (
+            <button onClick={onGoBack} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              height: 28, padding: '0 10px', borderRadius: 4,
+              border: '1px solid #e5e5e3', background: '#f7f7f5',
+              cursor: 'pointer', fontSize: 12, color: '#6b6b70',
+              fontFamily: 'inherit', flexShrink: 0,
+            }}>
+              ← Back
+            </button>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, minWidth: 140 }}>
             {crumb && (
               <span style={{

@@ -133,7 +133,7 @@ function ImeiTable({ imeis, loading, onViewImei }: {
       {/* IMEI column headers */}
       <tr>
         <td colSpan={7} style={{ padding: 0, background: C.subtle, borderBottom: `1px solid ${C.line}` }}>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginLeft: 48 }}>
+          <table style={{ width: 'calc(100% - 48px)', borderCollapse: 'separate', borderSpacing: 0, marginLeft: 48 }}>
             <thead>
               <tr>
                 {[['IMEI', undefined], ['Status', 130], ['Date added', 200], ['', 80]].map(([h, w], i) => (
