@@ -256,7 +256,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => vo
     let cancelled = false;
     const load = async () => {
       try {
-        const d = await getDashboardSummary();
+        const d = await getDashboardSummary(period);
         if (!cancelled) setData(d);
       } catch (e) {
         console.error('Dashboard load error:', e);
@@ -265,10 +265,10 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => vo
     load();
     const id = setInterval(load, 60_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  }, [period]);
 
-  const sales = data?.today_sales ?? 0;
-  const purchases = data?.today_purchases ?? 0;
+  const sales = data?.period_sales ?? 0;
+  const purchases = data?.period_purchases ?? 0;
   const critCount = data?.low_stock.filter(i => i.quantity <= 2).length ?? 0;
   const lowCount = (data?.low_stock.length ?? 0) - critCount;
 
@@ -292,19 +292,21 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => vo
       {/* ── KPI row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <KpiCard
-          label="Today's sales" sparkIdx={0} accent
+          label={period === 'today' ? "Today's sales" : period === 'week' ? "This week's sales" : "This month's sales"}
+          sparkIdx={0} accent
           icon={<><path d="M3 12l3-3 2 2 5-5"/><path d="M10 6h3v3"/></>}
           value={sales}
-          metaLeft={<span style={{ fontFamily: "'JetBrains Mono', monospace', monospace", color: '#6b6b70' }}>—</span>}
-          metaRight="vs yesterday"
+          metaLeft={<span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#6b6b70' }}>—</span>}
+          metaRight={period === 'today' ? 'vs yesterday' : period === 'week' ? 'last 7 days' : 'month to date'}
           subRight={`${data?.recent_entries.filter(e => e.source_type === 'sale').length ?? 0} invoices`}
         />
         <KpiCard
-          label="Today's purchases" sparkIdx={1}
+          label={period === 'today' ? "Today's purchases" : period === 'week' ? "This week's purchases" : "This month's purchases"}
+          sparkIdx={1}
           icon={<><path d="M3 4h10v8H3z"/><path d="M3 7h10"/></>}
           value={purchases}
           metaLeft={<span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#6b6b70' }}>—</span>}
-          metaRight="vs yesterday"
+          metaRight={period === 'today' ? 'vs yesterday' : period === 'week' ? 'last 7 days' : 'month to date'}
           subRight={`${data?.recent_entries.filter(e => e.source_type === 'purchase').length ?? 0} invoices`}
         />
         <KpiCard

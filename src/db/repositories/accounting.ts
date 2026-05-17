@@ -50,6 +50,6 @@ export async function insertAccount(input: InsertAccountInput): Promise<number> 
   return invoke('insert_account', { input });
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
-  return invoke('get_dashboard_summary');
+export async function getDashboardSummary(period: string): Promise<DashboardSummary> {
+  return invoke('get_dashboard_summary', { period });
 }

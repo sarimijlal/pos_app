@@ -6,6 +6,8 @@ import { SalesForm } from './modules/sales/components/SalesForm';
 import { SalesListScreen } from './modules/sales/components/SalesListScreen';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
 import { PurchaseListScreen } from './modules/purchase/components/PurchaseListScreen';
+import { PurchaseReturnForm } from './modules/purchase/components/PurchaseReturnForm';
+import { SalesReturnForm } from './modules/sales/components/SalesReturnForm';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
   return (
@@ -51,11 +53,11 @@ function App() {
       {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('dashboard')} />}
       {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={() => navigate('sales-detail')} onReturn={() => navigate('sales-return')} />}
       {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
-      {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
+      {section === 'sales-return'      && <SalesReturnForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('sales-list')} />}
       {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
       {section === 'purchase-list'     && <PurchaseListScreen onNew={() => navigate('purchase-new')} onViewDetail={() => navigate('purchase-detail')} onReturn={() => navigate('purchase-return')} />}
       {section === 'purchase-detail'   && <PlaceholderScreen title="Purchase Invoice Detail" section="Screen 06 — Purchase List (detail)" />}
-      {section === 'purchase-return'   && <PlaceholderScreen title="Purchase Return"        section="Screen 08 — Purchase Return Form" />}
+      {section === 'purchase-return'   && <PurchaseReturnForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('purchase-list')} />}
       {section === 'inventory-stock'   && <PlaceholderScreen title="Inventory · Stock"      section="Screen 09 — Inventory List" />}
       {section === 'inventory-imei'    && <PlaceholderScreen title="IMEI Lookup"            section="Screen 10 — IMEI Lookup" />}
       {section === 'accounts-ledger'   && <PlaceholderScreen title="Chart of Accounts"      section="Screen 13 — Chart of Accounts" />}
