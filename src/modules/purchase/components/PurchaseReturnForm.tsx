@@ -180,10 +180,10 @@ function OriginalInvoiceCard({ invoice }: { invoice: PurchaseInvoiceDetail }) {
   );
 }
 
-interface Props { onSaved: () => void; onCancel: () => void; }
+interface Props { initialInvoiceId?: number | null; onSaved: () => void; onCancel: () => void; }
 
-export function PurchaseReturnForm({ onSaved, onCancel }: Props) {
-  const [invoiceId, setInvoiceId] = useState<number | null>(null);
+export function PurchaseReturnForm({ initialInvoiceId, onSaved, onCancel }: Props) {
+  const [invoiceId, setInvoiceId] = useState<number | null>(initialInvoiceId ?? null);
   const [invoice, setInvoice] = useState<PurchaseInvoiceDetail | null>(null);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
   const [lineStates, setLineStates] = useState<Record<number, LineState>>({});
@@ -192,7 +192,7 @@ export function PurchaseReturnForm({ onSaved, onCancel }: Props) {
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPicker, setShowPicker] = useState(true);
+  const [showPicker, setShowPicker] = useState(!initialInvoiceId);
   const [invoiceList, setInvoiceList] = useState<PurchaseInvoiceRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
