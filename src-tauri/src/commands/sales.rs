@@ -311,26 +311,31 @@ async fn do_save(
 
         if line.item_type == "mobile" {
             for imei in &line.imeis {
-                let res = sqlx::query(
-                    "UPDATE imei_units SET status='sold', sale_invoice_line_id=? \
-                     WHERE imei=? AND status='in_stock'",
+                // Resolve the specific in-stock unit FIRST, then use its id for
+                // both the UPDATE and the sales_imei_lines INSERT so we never
+                // accidentally reference a different (older, sold) row for the
+                // same IMEI (possible after a buy-back scenario).
+                let unit_row = sqlx::query(
+                    "SELECT id FROM imei_units WHERE imei = ? AND status = 'in_stock'",
                 )
-                .bind(line_id)
                 .bind(imei.as_str())
-                .execute(&mut **tx)
+                .fetch_optional(&mut **tx)
                 .await
                 .map_err(|e| e.to_string())?;
 
-                if res.rows_affected() == 0 {
-                    return Err(format!("IMEI {imei} is not in stock"));
-                }
+                let imei_unit_id: i64 = match unit_row {
+                    None => return Err(format!("IMEI {imei} is not in stock")),
+                    Some(r) => r.try_get("id").map_err(|e| e.to_string())?,
+                };
 
-                let row = sqlx::query("SELECT id FROM imei_units WHERE imei = ?")
-                    .bind(imei.as_str())
-                    .fetch_one(&mut **tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                let imei_unit_id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "UPDATE imei_units SET status='sold', sale_invoice_line_id=? WHERE id=?",
+                )
+                .bind(line_id)
+                .bind(imei_unit_id)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
 
                 sqlx::query(
                     "INSERT INTO sales_imei_lines (sales_invoice_line_id, imei_unit_id) \

@@ -27,12 +27,13 @@ export type RecentEntry = {
   reference_no: string;
   narration: string;
   source_type: string;
+  source_id: number;
   total_debit: number;
 };
 
 export type DashboardSummary = {
-  today_sales: number;
-  today_purchases: number;
+  period_sales: number;
+  period_purchases: number;
   cash_in_hand: number;
   total_receivables: number;
   receivable_customers: number;

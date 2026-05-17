@@ -33,10 +33,12 @@ pub struct ImeiLookupResult {
     imei: String,
     status: String,
     item_name: String,
+    purchase_invoice_id: i64,
     purchase_invoice_no: String,
     purchase_date: String,
     supplier_name: String,
     cost_price: f64,
+    sale_invoice_id: Option<i64>,
     sale_invoice_no: Option<String>,
     sale_date: Option<String>,
     customer_name: Option<String>,
@@ -315,7 +317,7 @@ pub async fn get_item_imeis(
 pub async fn lookup_imei(
     db_instances: tauri::State<'_, DbInstances>,
     imei: String,
-) -> Result<Option<ImeiLookupResult>, String> {
+) -> Result<Vec<ImeiLookupResult>, String> {
     let pool = {
         let instances = db_instances.0.read().await;
         match instances
@@ -326,14 +328,16 @@ pub async fn lookup_imei(
         }
     };
 
-    let row = sqlx::query(
+    let rows = sqlx::query(
         "SELECT \
            iu.imei, iu.status, \
            it.name as item_name, \
+           pi.id as purchase_invoice_id, \
            pi.invoice_no as purchase_invoice_no, \
            pi.invoice_date as purchase_date, \
            sup.name as supplier_name, \
            pil.rate as cost_price, \
+           si.id as sale_invoice_id, \
            si.invoice_no as sale_invoice_no, \
            si.date as sale_date, \
            cus.name as customer_name, \
@@ -347,35 +351,36 @@ pub async fn lookup_imei(
          LEFT JOIN sales_invoice_lines slines ON slines.id = sil.sales_invoice_line_id \
          LEFT JOIN sales_invoices si ON si.id = slines.sales_invoice_id \
          LEFT JOIN customers cus ON cus.id = si.customer_id \
-         WHERE iu.imei = ?",
+         WHERE iu.imei = ? ORDER BY iu.id ASC",
     )
     .bind(&imei)
-    .fetch_optional(&pool)
+    .fetch_all(&pool)
     .await
     .map_err(|e| e.to_string())?;
 
-    match row {
-        None => Ok(None),
-        Some(r) => {
+    rows.iter()
+        .map(|r| {
             let cost_price: f64 = r.try_get("cost_price").map_err(|e| e.to_string())?;
             let sale_price: Option<f64> = r.try_get("sale_price").map_err(|e| e.to_string())?;
             let profit = sale_price.map(|sp| sp - cost_price);
-            Ok(Some(ImeiLookupResult {
+            Ok(ImeiLookupResult {
                 imei: r.try_get("imei").map_err(|e| e.to_string())?,
                 status: r.try_get("status").map_err(|e| e.to_string())?,
                 item_name: r.try_get("item_name").map_err(|e| e.to_string())?,
+                purchase_invoice_id: r.try_get("purchase_invoice_id").map_err(|e| e.to_string())?,
                 purchase_invoice_no: r
                     .try_get("purchase_invoice_no")
                     .map_err(|e| e.to_string())?,
                 purchase_date: r.try_get("purchase_date").map_err(|e| e.to_string())?,
                 supplier_name: r.try_get("supplier_name").map_err(|e| e.to_string())?,
                 cost_price,
+                sale_invoice_id: r.try_get("sale_invoice_id").map_err(|e| e.to_string())?,
                 sale_invoice_no: r.try_get("sale_invoice_no").map_err(|e| e.to_string())?,
                 sale_date: r.try_get("sale_date").map_err(|e| e.to_string())?,
                 customer_name: r.try_get("customer_name").map_err(|e| e.to_string())?,
                 sale_price,
                 profit,
-            }))
-        }
-    }
+            })
+        })
+        .collect()
 }

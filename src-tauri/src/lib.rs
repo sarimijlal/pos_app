@@ -17,6 +17,12 @@ pub fn run() {
             sql: include_str!("../../src/db/migrations/0001_seed_accounts.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "imei_partial_unique",
+            sql: include_str!("../../src/db/migrations/0002_imei_partial_unique.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

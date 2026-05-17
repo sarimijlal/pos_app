@@ -3,7 +3,15 @@ import { getDb } from './db/client';
 import { AppShell, type Section } from './components/AppShell';
 import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
+import { SalesListScreen } from './modules/sales/components/SalesListScreen';
+import { SalesInvoiceDetailScreen } from './modules/sales/components/SalesInvoiceDetailScreen';
 import { PurchaseForm } from './modules/purchase/components/PurchaseForm';
+import { PurchaseListScreen } from './modules/purchase/components/PurchaseListScreen';
+import { PurchaseInvoiceDetailScreen } from './modules/purchase/components/PurchaseInvoiceDetailScreen';
+import { PurchaseReturnForm } from './modules/purchase/components/PurchaseReturnForm';
+import { SalesReturnForm } from './modules/sales/components/SalesReturnForm';
+import { InventoryListScreen } from './modules/inventory/components/InventoryListScreen';
+import { ImeiLookupScreen } from './modules/inventory/components/ImeiLookupScreen';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
   return (
@@ -34,28 +42,63 @@ function PlaceholderScreen({ title, section }: { title: string; section: string 
   );
 }
 
+type NavEntry = { section: Section; invoiceId: number | null; imei: string | null };
+
 function App() {
   const [section, setSection] = useState<Section>('dashboard');
+  const [dbReady, setDbReady] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [selectedImei, setSelectedImei] = useState<string | null>(null);
+  const [navHistory, setNavHistory] = useState<NavEntry[]>([]);
 
   useEffect(() => {
-    getDb().catch(console.error);
+    getDb().then(() => setDbReady(true)).catch(console.error);
   }, []);
 
-  const navigate = (s: Section) => setSection(s);
+  const navigate = (s: Section, id?: number, imei?: string) => {
+    setNavHistory(prev => [
+      ...prev.slice(-19),
+      { section, invoiceId: selectedInvoiceId, imei: selectedImei },
+    ]);
+    setSection(s);
+    if (id !== undefined) setSelectedInvoiceId(id);
+    if (imei !== undefined) setSelectedImei(imei);
+  };
+
+  const goBack = () => {
+    setNavHistory(prev => {
+      const next = [...prev];
+      const last = next.pop();
+      if (last) {
+        setSection(last.section);
+        setSelectedInvoiceId(last.invoiceId);
+        setSelectedImei(last.imei);
+      }
+      return next;
+    });
+  };
+
+  if (!dbReady) {
+    return (
+      <div style={{ height: '100vh', display: 'grid', placeItems: 'center', background: '#fafaf9', color: '#9a9aa0', fontFamily: "'Inter Variable','Inter',sans-serif", fontSize: 13 }}>
+        Initialising…
+      </div>
+    );
+  }
 
   return (
-    <AppShell section={section} onNavigate={navigate}>
+    <AppShell section={section} onNavigate={navigate} canGoBack={navHistory.length > 0} onGoBack={goBack}>
       {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
-      {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={() => navigate('dashboard')} />}
-      {section === 'sales-list'        && <PlaceholderScreen title="Sales List"             section="Screen 05 — Sales List" />}
-      {section === 'sales-detail'      && <PlaceholderScreen title="Sales Invoice Detail"   section="Screen 05 — Sales List (detail)" />}
-      {section === 'sales-return'      && <PlaceholderScreen title="Sales Return"           section="Screen 07 — Sales Return Form" />}
-      {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={() => navigate('dashboard')} />}
-      {section === 'purchase-list'     && <PlaceholderScreen title="Purchase List"          section="Screen 06 — Purchase List" />}
-      {section === 'purchase-detail'   && <PlaceholderScreen title="Purchase Invoice Detail" section="Screen 06 — Purchase List (detail)" />}
-      {section === 'purchase-return'   && <PlaceholderScreen title="Purchase Return"        section="Screen 08 — Purchase Return Form" />}
-      {section === 'inventory-stock'   && <PlaceholderScreen title="Inventory · Stock"      section="Screen 09 — Inventory List" />}
-      {section === 'inventory-imei'    && <PlaceholderScreen title="IMEI Lookup"            section="Screen 10 — IMEI Lookup" />}
+      {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={goBack} />}
+      {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={(id) => navigate('sales-detail', id)} onReturn={(id) => navigate('sales-return', id)} />}
+      {section === 'sales-detail'      && <SalesInvoiceDetailScreen invoiceId={selectedInvoiceId} onBack={goBack} />}
+      {section === 'sales-return'      && <SalesReturnForm initialInvoiceId={selectedInvoiceId} onSaved={() => navigate('sales-list')} onCancel={goBack} />}
+      {section === 'purchase-new'      && <PurchaseForm onSaved={() => navigate('purchase-list')} onCancel={goBack} />}
+      {section === 'purchase-list'     && <PurchaseListScreen onNew={() => navigate('purchase-new')} onViewDetail={(id) => navigate('purchase-detail', id)} onReturn={(id) => navigate('purchase-return', id)} />}
+      {section === 'purchase-detail'   && <PurchaseInvoiceDetailScreen invoiceId={selectedInvoiceId} onBack={goBack} />}
+      {section === 'purchase-return'   && <PurchaseReturnForm initialInvoiceId={selectedInvoiceId} onSaved={() => navigate('purchase-list')} onCancel={goBack} />}
+      {section === 'inventory-stock'   && <InventoryListScreen onViewImei={(imei) => navigate('inventory-imei', undefined, imei)} />}
+      {section === 'inventory-imei'    && <ImeiLookupScreen initialImei={selectedImei} onNavigate={navigate} />}
       {section === 'accounts-ledger'   && <PlaceholderScreen title="Chart of Accounts"      section="Screen 13 — Chart of Accounts" />}
       {section === 'master-parties'    && <PlaceholderScreen title="Suppliers & Customers"  section="Screen 11 — Parties" />}
       {section === 'master-items'      && <PlaceholderScreen title="Items Master"           section="Screen 12 — Items Master" />}

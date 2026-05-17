@@ -38,13 +38,14 @@ pub struct RecentEntry {
     reference_no: String,
     narration: String,
     source_type: String,
+    source_id: i64,
     total_debit: f64,
 }
 
 #[derive(Serialize)]
 pub struct DashboardSummary {
-    today_sales: f64,
-    today_purchases: f64,
+    period_sales: f64,
+    period_purchases: f64,
     cash_in_hand: f64,
     total_receivables: f64,
     receivable_customers: i64,
@@ -546,6 +547,7 @@ pub async fn insert_account(
 #[tauri::command]
 pub async fn get_dashboard_summary(
     db_instances: tauri::State<'_, DbInstances>,
+    period: String,
 ) -> Result<DashboardSummary, String> {
     let pool = {
         let instances = db_instances.0.read().await;
@@ -557,25 +559,48 @@ pub async fn get_dashboard_summary(
         }
     };
 
-    let sales_row = sqlx::query(
+    // Build date conditions from a whitelisted period — no user input interpolated into SQL.
+    let (sales_date_cond, purchases_date_cond, entries_date_cond) = match period.as_str() {
+        "week" => (
+            "date >= date('now', '-6 days') AND date <= date('now')",
+            "invoice_date >= date('now', '-6 days') AND invoice_date <= date('now')",
+            "je.date >= date('now', '-6 days')",
+        ),
+        "month" => (
+            "date >= date('now', 'start of month') AND date <= date('now')",
+            "invoice_date >= date('now', 'start of month') AND invoice_date <= date('now')",
+            "je.date >= date('now', 'start of month')",
+        ),
+        _ => (
+            "date = date('now')",
+            "invoice_date = date('now')",
+            "je.date = date('now')",
+        ),
+    };
+
+    let sales_sql = format!(
         "SELECT COALESCE(SUM(total_amount), 0.0) as total \
          FROM sales_invoices \
-         WHERE date = date('now') AND status = 'active'",
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| e.to_string())?;
-    let today_sales: f64 = sales_row.try_get("total").map_err(|e| e.to_string())?;
+         WHERE {} AND status = 'active'",
+        sales_date_cond
+    );
+    let sales_row = sqlx::query(&sales_sql)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    let period_sales: f64 = sales_row.try_get("total").map_err(|e| e.to_string())?;
 
-    let purchases_row = sqlx::query(
+    let purchases_sql = format!(
         "SELECT COALESCE(SUM(total_amount), 0.0) as total \
          FROM purchase_invoices \
-         WHERE invoice_date = date('now') AND status = 'active'",
-    )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| e.to_string())?;
-    let today_purchases: f64 = purchases_row.try_get("total").map_err(|e| e.to_string())?;
+         WHERE {} AND status = 'active'",
+        purchases_date_cond
+    );
+    let purchases_row = sqlx::query(&purchases_sql)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    let period_purchases: f64 = purchases_row.try_get("total").map_err(|e| e.to_string())?;
 
     let low_stock_rows = sqlx::query(
         "SELECT i.id as item_id, i.name, s.quantity \
@@ -598,18 +623,21 @@ pub async fn get_dashboard_summary(
         })
         .collect::<Result<Vec<_>, String>>()?;
 
-    let entry_rows = sqlx::query(
-        "SELECT je.id, je.date, je.reference_no, je.narration, je.source_type, \
+    let entries_sql = format!(
+        "SELECT je.id, je.date, je.reference_no, je.narration, je.source_type, je.source_id, \
                 SUM(jel.debit) as total_debit \
          FROM journal_entries je \
          JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id \
+         WHERE {} \
          GROUP BY je.id \
          ORDER BY je.created_at DESC \
          LIMIT 10",
-    )
-    .fetch_all(&pool)
-    .await
-    .map_err(|e| e.to_string())?;
+        entries_date_cond
+    );
+    let entry_rows = sqlx::query(&entries_sql)
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let recent_entries: Vec<RecentEntry> = entry_rows
         .iter()
@@ -625,6 +653,9 @@ pub async fn get_dashboard_summary(
                     .map_err(|e: sqlx::Error| e.to_string())?,
                 source_type: r
                     .try_get("source_type")
+                    .map_err(|e: sqlx::Error| e.to_string())?,
+                source_id: r
+                    .try_get("source_id")
                     .map_err(|e: sqlx::Error| e.to_string())?,
                 total_debit: r
                     .try_get("total_debit")
@@ -673,8 +704,8 @@ pub async fn get_dashboard_summary(
     let receivable_customers: i64 = recv_cust_row.try_get("count").map_err(|e| e.to_string())?;
 
     Ok(DashboardSummary {
-        today_sales,
-        today_purchases,
+        period_sales,
+        period_purchases,
         cash_in_hand,
         total_receivables,
         receivable_customers,

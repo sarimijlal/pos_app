@@ -37,6 +37,6 @@ export async function getItemImeis(itemId: number): Promise<ItemImeiRow[]> {
   return invoke('get_item_imeis', { itemId });
 }
 
-export async function lookupImei(imei: string): Promise<ImeiLookupResult | null> {
+export async function lookupImei(imei: string): Promise<ImeiLookupResult[]> {
   return invoke('lookup_imei', { imei });
 }
