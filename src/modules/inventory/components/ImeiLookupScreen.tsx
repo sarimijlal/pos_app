@@ -331,8 +331,7 @@ export function ImeiLookupScreen({
 
       {/* ── Found ── */}
       {state === 'found' && cycles.length > 0 && (() => {
-        const lastCycle  = cycles[cycles.length - 1];
-        const isLastSold = lastCycle.status === 'sold';
+        const lastCycle = cycles[cycles.length - 1];
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -452,49 +451,112 @@ export function ImeiLookupScreen({
               {/* ── Financials + Links ── */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-                {/* Financials card — shows most recent cycle */}
-                <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: C.subtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Financials {cycles.length > 1 ? '· current cycle' : ''}
-                    </span>
-                  </div>
-                  <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {[
-                      { label: 'Cost price', value: `₨ ${fmt(lastCycle.cost_price)}`, color: C.ink2 },
-                      { label: 'Sale price', value: lastCycle.sale_price ? `₨ ${fmt(lastCycle.sale_price)}` : '— not sold —', color: lastCycle.sale_price ? C.ink2 : C.muted2 },
-                      {
-                        label: isLastSold ? 'Profit' : lastCycle.status === 'in_stock' ? 'Unrealized cost' : 'Net impact',
-                        value: lastCycle.profit != null ? `₨ ${fmt(Math.abs(lastCycle.profit))}` : `₨ ${fmt(lastCycle.cost_price)}`,
-                        color: lastCycle.profit != null ? (lastCycle.profit >= 0 ? C.ok : C.bad) : C.muted,
-                        prefix: lastCycle.profit != null ? (lastCycle.profit >= 0 ? '+' : '−') : undefined,
-                      },
-                    ].map(({ label, value, color, prefix }) => (
-                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 13 }}>
-                        <span style={{ color: C.muted }}>{label}</span>
-                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color, fontVariantNumeric: 'tabular-nums' }}>
-                          {prefix && <span style={{ fontSize: 11 }}>{prefix} </span>}{value}
+                {/* Financials card — per-cycle P&L + cumulative */}
+                {(() => {
+                  const completedCycles = cycles.filter(c => c.profit != null);
+                  const cumulativeProfit = completedCycles.reduce((s, c) => s + c.profit!, 0);
+                  const totalRevenue     = completedCycles.reduce((s, c) => s + (c.sale_price ?? 0), 0);
+                  const blendedMargin    = totalRevenue > 0 ? (cumulativeProfit / totalRevenue) * 100 : null;
+
+                  return (
+                    <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
+                      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: C.subtle }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Financials
                         </span>
                       </div>
-                    ))}
-                    {isLastSold && lastCycle.sale_price && lastCycle.profit != null && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, paddingTop: 6, borderTop: `1px dashed ${C.line}` }}>
-                        <span style={{ color: C.muted }}>Margin</span>
-                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: lastCycle.profit >= 0 ? C.ok : C.bad }}>
-                          {((lastCycle.profit / lastCycle.sale_price) * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, paddingTop: 6, borderTop: `1px dashed ${C.line}` }}>
-                      <span style={{ color: C.muted }}>{isLastSold ? 'Time on shelf' : 'Days in stock'}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", color: C.ink2 }}>
-                        {isLastSold && lastCycle.sale_date
-                          ? daysBetween(lastCycle.purchase_date, lastCycle.sale_date)
-                          : daysBetween(lastCycle.purchase_date, today)}d
-                      </span>
+
+                      {/* Per-cycle rows */}
+                      {cycles.map((c, i) => {
+                        const sold      = c.status === 'sold';
+                        const hasProfit = c.profit != null;
+                        const pnlColor  = hasProfit ? (c.profit! >= 0 ? C.ok : C.bad) : C.muted;
+                        const shelf     = sold && c.sale_date
+                          ? daysBetween(c.purchase_date, c.sale_date)
+                          : daysBetween(c.purchase_date, today);
+                        return (
+                          <div key={c.purchase_invoice_id} style={{
+                            padding: '10px 14px',
+                            borderBottom: `1px solid ${C.line}`,
+                          }}>
+                            {/* Cycle label */}
+                            {cycles.length > 1 && (
+                              <div style={{ fontSize: 10, fontWeight: 600, color: C.muted2, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                                Cycle {i + 1} · {c.purchase_invoice_no}
+                              </div>
+                            )}
+                            {/* Cost */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12.5, marginBottom: 4 }}>
+                              <span style={{ color: C.muted }}>Cost</span>
+                              <span style={{ fontFamily: "'JetBrains Mono', monospace", color: C.ink2 }}>₨ {fmt(c.cost_price)}</span>
+                            </div>
+                            {/* Sale */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12.5, marginBottom: 6 }}>
+                              <span style={{ color: C.muted }}>Sale</span>
+                              <span style={{ fontFamily: "'JetBrains Mono', monospace", color: c.sale_price ? C.ink2 : C.muted2 }}>
+                                {c.sale_price ? `₨ ${fmt(c.sale_price)}` : c.status === 'in_stock' ? '— in stock —' : '— no sale —'}
+                              </span>
+                            </div>
+                            {/* P&L + margin */}
+                            <div style={{ paddingTop: 6, borderTop: `1px dashed ${C.line}` }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 13 }}>
+                                <span style={{ color: C.muted }}>{hasProfit ? 'P&L' : 'Unrealized'}</span>
+                                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: pnlColor }}>
+                                  {hasProfit
+                                    ? `${c.profit! >= 0 ? '+' : '−'} ₨ ${fmt(Math.abs(c.profit!))}`
+                                    : `₨ ${fmt(c.cost_price)}`}
+                                </span>
+                              </div>
+                              {sold && hasProfit && c.sale_price && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 2 }}>
+                                  <span style={{ color: C.muted2 }}>Margin · {shelf}d on shelf</span>
+                                  <span style={{ fontFamily: "'JetBrains Mono', monospace", color: pnlColor }}>
+                                    {((c.profit! / c.sale_price) * 100).toFixed(1)}%
+                                  </span>
+                                </div>
+                              )}
+                              {!sold && (
+                                <div style={{ fontSize: 11, color: C.muted2, marginTop: 2 }}>{shelf}d in stock</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Cumulative footer — only for multi-cycle */}
+                      {cycles.length > 1 && (
+                        <div style={{
+                          padding: '10px 14px',
+                          background: completedCycles.length > 0
+                            ? (cumulativeProfit >= 0 ? '#edf7f2' : '#fdf0f0')
+                            : C.subtle,
+                          borderTop: `2px solid ${completedCycles.length > 0 ? (cumulativeProfit >= 0 ? C.ok : C.bad) : C.line2}`,
+                        }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 7 }}>
+                            Cumulative · {completedCycles.length} of {cycles.length} cycles sold
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <span style={{ fontSize: 13, color: C.muted }}>Total P&L</span>
+                            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700,
+                              color: completedCycles.length === 0 ? C.muted2 : cumulativeProfit >= 0 ? C.ok : C.bad }}>
+                              {completedCycles.length === 0
+                                ? '—'
+                                : `${cumulativeProfit >= 0 ? '+' : '−'} ₨ ${fmt(Math.abs(cumulativeProfit))}`}
+                            </span>
+                          </div>
+                          {blendedMargin !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginTop: 4 }}>
+                              <span style={{ color: C.muted2 }}>Blended margin</span>
+                              <span style={{ fontFamily: "'JetBrains Mono', monospace", color: cumulativeProfit >= 0 ? C.ok : C.bad }}>
+                                {blendedMargin.toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Links card — all invoices across all cycles */}
                 <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
