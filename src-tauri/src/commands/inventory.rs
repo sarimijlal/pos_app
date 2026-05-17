@@ -351,7 +351,7 @@ pub async fn lookup_imei(
          LEFT JOIN sales_invoice_lines slines ON slines.id = sil.sales_invoice_line_id \
          LEFT JOIN sales_invoices si ON si.id = slines.sales_invoice_id \
          LEFT JOIN customers cus ON cus.id = si.customer_id \
-         WHERE iu.imei = ?",
+         WHERE iu.imei = ? ORDER BY iu.id DESC LIMIT 1",
     )
     .bind(&imei)
     .fetch_optional(&pool)
