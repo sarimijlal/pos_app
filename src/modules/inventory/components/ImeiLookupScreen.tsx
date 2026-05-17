@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { lookupImei } from '../../../db/repositories/inventory';
 import type { ImeiLookupResult } from '../types';
 import type { Section } from '../../../components/AppShell';
@@ -169,7 +169,7 @@ export function ImeiLookupScreen({
   onNavigate: (s: Section, id?: number) => void;
 }) {
   const [input, setInput] = useState(initialImei ?? '');
-  const [result, setResult] = useState<ImeiLookupResult | null>(null);
+  const [cycles, setCycles] = useState<ImeiLookupResult[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'found' | 'not_found'>('idle');
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -178,10 +178,10 @@ export function ImeiLookupScreen({
     const clean = imei.trim();
     if (!clean) return;
     setState('loading');
-    setResult(null);
+    setCycles([]);
     try {
       const r = await lookupImei(clean);
-      if (r) { setResult(r); setState('found'); }
+      if (r.length > 0) { setCycles(r); setState('found'); }
       else { setState('not_found'); }
     } catch {
       setState('not_found');
@@ -200,7 +200,7 @@ export function ImeiLookupScreen({
         inputRef.current?.select();
       }
       if (e.key === 'Escape' && state !== 'idle') {
-        setInput(''); setResult(null); setState('idle');
+        setInput(''); setCycles([]); setState('idle');
         inputRef.current?.focus();
       }
     };
@@ -209,15 +209,15 @@ export function ImeiLookupScreen({
   }, [state]);
 
   const copyImei = () => {
-    if (!result) return;
-    navigator.clipboard.writeText(result.imei).then(() => {
+    if (cycles.length === 0) return;
+    navigator.clipboard.writeText(cycles[0].imei).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
   };
 
   const clear = () => {
-    setInput(''); setResult(null); setState('idle');
+    setInput(''); setCycles([]); setState('idle');
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
@@ -330,14 +330,9 @@ export function ImeiLookupScreen({
       )}
 
       {/* ── Found ── */}
-      {state === 'found' && result && (() => {
-        const isSold     = result.status === 'sold';
-        const isReturned = result.status === 'returned';
-        const isInStock  = result.status === 'in_stock';
-        const profit     = result.profit;
-        const daysOnShelf = isSold && result.sale_date
-          ? daysBetween(result.purchase_date, result.sale_date)
-          : daysBetween(result.purchase_date, today);
+      {state === 'found' && cycles.length > 0 && (() => {
+        const lastCycle  = cycles[cycles.length - 1];
+        const isLastSold = lastCycle.status === 'sold';
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -351,7 +346,7 @@ export function ImeiLookupScreen({
                 <span style={{ fontSize: 10, color: C.muted2, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>IMEI</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 20, fontWeight: 700, color: C.ink, letterSpacing: '0.05em' }}>
-                    {result.imei}
+                    {lastCycle.imei}
                   </span>
                   <button onClick={copyImei} title="Copy IMEI" style={{
                     height: 24, padding: '0 8px', border: `1px solid ${C.line}`, background: copied ? C.okBg : C.subtle,
@@ -361,10 +356,19 @@ export function ImeiLookupScreen({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ fontSize: 10, color: C.muted2, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Item</span>
-                <span style={{ fontSize: 15, fontWeight: 600, color: C.ink2 }}>{result.item_name}</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: C.ink2 }}>{cycles[0].item_name}</span>
               </div>
+              {cycles.length > 1 && (
+                <span style={{
+                  height: 22, padding: '0 9px', borderRadius: 999, fontSize: 11.5, fontWeight: 500,
+                  background: C.infoBg, color: C.info, border: '1px solid rgba(31,58,138,0.22)',
+                  display: 'inline-flex', alignItems: 'center',
+                }}>
+                  {cycles.length} ownership cycles
+                </span>
+              )}
               <div style={{ marginLeft: 'auto' }}>
-                <StatusPill status={result.status} />
+                <StatusPill status={lastCycle.status} />
               </div>
             </div>
 
@@ -374,79 +378,96 @@ export function ImeiLookupScreen({
               {/* ── Timeline ── */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 <div style={{ fontSize: 11, color: C.muted2, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 12 }}>
-                  Trace · Lifecycle
+                  Trace · Lifecycle {cycles.length > 1 ? `(${cycles.length} cycles)` : ''}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {/* Purchase event */}
-                  <TimelineEvent
-                    type="purchase"
-                    label="Purchased"
-                    date={result.purchase_date}
-                    relTime={relativeTime(result.purchase_date)}
-                    isCurrent={isInStock}
-                    invoiceNo={result.purchase_invoice_no}
-                    partyRole="from supplier"
-                    party={result.supplier_name}
-                    amount={result.cost_price}
-                    amountLabel="cost price"
-                    extras={[{ key: 'Supplier', val: result.supplier_name }]}
-                  />
+                  {cycles.map((c, i) => {
+                    const isLastCycle = i === cycles.length - 1;
+                    const hasSale     = (c.status === 'sold' || c.status === 'returned') && !!c.sale_invoice_no;
+                    const isInStock   = c.status === 'in_stock';
+                    const isReturned  = c.status === 'returned';
 
-                  {/* Vertical connector */}
-                  <div style={{ marginLeft: 13, width: 2, height: 10, background: C.line2 }} />
+                    return (
+                      <Fragment key={c.purchase_invoice_id}>
+                        {/* Cycle separator after first */}
+                        {i > 0 && (
+                          <div style={{ marginLeft: 13, width: 2, height: 18, background: C.line2 }} />
+                        )}
 
-                  {/* Sale event or awaiting */}
-                  {(isSold || isReturned) && result.sale_invoice_no ? (
-                    <TimelineEvent
-                      type="sale"
-                      label="Sold"
-                      date={result.sale_date ?? undefined}
-                      relTime={result.sale_date ? relativeTime(result.sale_date) : undefined}
-                      isCurrent={isSold}
-                      invoiceNo={result.sale_invoice_no}
-                      partyRole="to customer"
-                      party={result.customer_name ?? undefined}
-                      amount={result.sale_price ?? undefined}
-                      amountLabel="sale price"
-                      extras={result.customer_name ? [{ key: 'Customer', val: result.customer_name }] : undefined}
-                    />
-                  ) : (
-                    <TimelineEvent type="pending" label="Awaiting sale" isCurrent={isInStock} />
-                  )}
+                        {/* Purchase */}
+                        <TimelineEvent
+                          type="purchase"
+                          label={i === 0 ? 'Purchased' : `Purchased again · #${i + 1}`}
+                          date={c.purchase_date}
+                          relTime={relativeTime(c.purchase_date)}
+                          isCurrent={isInStock && isLastCycle}
+                          invoiceNo={c.purchase_invoice_no}
+                          partyRole="from supplier"
+                          party={c.supplier_name}
+                          amount={c.cost_price}
+                          amountLabel="cost price"
+                          extras={[{ key: 'Supplier', val: c.supplier_name }]}
+                        />
 
-                  {/* Return event (status only — no return invoice in backend yet) */}
-                  {isReturned && (
-                    <>
-                      <div style={{ marginLeft: 13, width: 2, height: 10, background: C.line2 }} />
-                      <TimelineEvent
-                        type="return"
-                        label="Returned"
-                        isCurrent={true}
-                        extras={[{ key: 'Status', val: 'Returned (see return invoice)' }]}
-                      />
-                    </>
-                  )}
+                        <div style={{ marginLeft: 13, width: 2, height: 10, background: C.line2 }} />
+
+                        {/* Sale or awaiting */}
+                        {hasSale ? (
+                          <TimelineEvent
+                            type="sale"
+                            label="Sold"
+                            date={c.sale_date ?? undefined}
+                            relTime={c.sale_date ? relativeTime(c.sale_date) : undefined}
+                            isCurrent={c.status === 'sold' && isLastCycle}
+                            invoiceNo={c.sale_invoice_no!}
+                            partyRole="to customer"
+                            party={c.customer_name ?? undefined}
+                            amount={c.sale_price ?? undefined}
+                            amountLabel="sale price"
+                            extras={c.customer_name ? [{ key: 'Customer', val: c.customer_name }] : undefined}
+                          />
+                        ) : (
+                          <TimelineEvent type="pending" label="Awaiting sale" isCurrent={isInStock && isLastCycle} />
+                        )}
+
+                        {/* Return */}
+                        {isReturned && (
+                          <>
+                            <div style={{ marginLeft: 13, width: 2, height: 10, background: C.line2 }} />
+                            <TimelineEvent
+                              type="return"
+                              label="Returned"
+                              isCurrent={isLastCycle}
+                              extras={[{ key: 'Status', val: 'Returned (see return invoice)' }]}
+                            />
+                          </>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* ── Financials + Links ── */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-                {/* Financials card */}
+                {/* Financials card — shows most recent cycle */}
                 <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: C.subtle }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Financials</span>
+                  <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: C.subtle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Financials {cycles.length > 1 ? '· current cycle' : ''}
+                    </span>
                   </div>
                   <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {[
-                      { label: 'Cost price', value: `₨ ${fmt(result.cost_price)}`, color: C.ink2 },
-                      { label: 'Sale price', value: result.sale_price ? `₨ ${fmt(result.sale_price)}` : '— not sold —', color: result.sale_price ? C.ink2 : C.muted2 },
+                      { label: 'Cost price', value: `₨ ${fmt(lastCycle.cost_price)}`, color: C.ink2 },
+                      { label: 'Sale price', value: lastCycle.sale_price ? `₨ ${fmt(lastCycle.sale_price)}` : '— not sold —', color: lastCycle.sale_price ? C.ink2 : C.muted2 },
                       {
-                        label: isSold ? 'Profit' : isInStock ? 'Unrealized cost' : 'Net impact',
-                        value: profit != null ? `₨ ${fmt(Math.abs(profit))}` : `₨ ${fmt(result.cost_price)}`,
-                        color: profit != null ? (profit >= 0 ? C.ok : C.bad) : C.muted,
-                        prefix: profit != null ? (profit >= 0 ? '+' : '−') : undefined,
+                        label: isLastSold ? 'Profit' : lastCycle.status === 'in_stock' ? 'Unrealized cost' : 'Net impact',
+                        value: lastCycle.profit != null ? `₨ ${fmt(Math.abs(lastCycle.profit))}` : `₨ ${fmt(lastCycle.cost_price)}`,
+                        color: lastCycle.profit != null ? (lastCycle.profit >= 0 ? C.ok : C.bad) : C.muted,
+                        prefix: lastCycle.profit != null ? (lastCycle.profit >= 0 ? '+' : '−') : undefined,
                       },
                     ].map(({ label, value, color, prefix }) => (
                       <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 13 }}>
@@ -456,61 +477,61 @@ export function ImeiLookupScreen({
                         </span>
                       </div>
                     ))}
-                    {isSold && result.sale_price && profit != null && (
+                    {isLastSold && lastCycle.sale_price && lastCycle.profit != null && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, paddingTop: 6, borderTop: `1px dashed ${C.line}` }}>
                         <span style={{ color: C.muted }}>Margin</span>
-                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: profit >= 0 ? C.ok : C.bad }}>
-                          {((profit / result.sale_price) * 100).toFixed(1)}%
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: lastCycle.profit >= 0 ? C.ok : C.bad }}>
+                          {((lastCycle.profit / lastCycle.sale_price) * 100).toFixed(1)}%
                         </span>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, paddingTop: 6, borderTop: `1px dashed ${C.line}` }}>
-                      <span style={{ color: C.muted }}>{isSold ? 'Time on shelf' : 'Days in stock'}</span>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", color: C.ink2 }}>{daysOnShelf}d</span>
+                      <span style={{ color: C.muted }}>{isLastSold ? 'Time on shelf' : 'Days in stock'}</span>
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", color: C.ink2 }}>
+                        {isLastSold && lastCycle.sale_date
+                          ? daysBetween(lastCycle.purchase_date, lastCycle.sale_date)
+                          : daysBetween(lastCycle.purchase_date, today)}d
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Links card */}
+                {/* Links card — all invoices across all cycles */}
                 <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: C.subtle }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Open invoices</span>
                   </div>
                   <div style={{ padding: '8px 6px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <button
-                      onClick={() => onNavigate('purchase-detail', result.purchase_invoice_id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-                        border: 'none', background: 'none', borderRadius: 5, cursor: 'pointer',
-                        textAlign: 'left', width: '100%',
-                      }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.subtle; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
-                    >
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.info, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12.5, color: C.ink2 }}>Purchase invoice</span>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.info, marginLeft: 'auto' }}>
-                        {result.purchase_invoice_no} →
-                      </span>
-                    </button>
-                    {result.sale_invoice_id && result.sale_invoice_no && (
-                      <button
-                        onClick={() => onNavigate('sales-detail', result.sale_invoice_id!)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-                          border: 'none', background: 'none', borderRadius: 5, cursor: 'pointer',
-                          textAlign: 'left', width: '100%',
-                        }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.subtle; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
-                      >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok, flexShrink: 0 }} />
-                        <span style={{ fontSize: 12.5, color: C.ink2 }}>Sales invoice</span>
-                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ok, marginLeft: 'auto' }}>
-                          {result.sale_invoice_no} →
-                        </span>
-                      </button>
-                    )}
+                    {cycles.map((c, i) => (
+                      <Fragment key={`links-${c.purchase_invoice_id}`}>
+                        <button
+                          onClick={() => onNavigate('purchase-detail', c.purchase_invoice_id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: 'none', background: 'none', borderRadius: 5, cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.subtle; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.info, flexShrink: 0 }} />
+                          <span style={{ fontSize: 12.5, color: C.ink2 }}>Purchase{cycles.length > 1 ? ` #${i + 1}` : ''}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.info, marginLeft: 'auto' }}>
+                            {c.purchase_invoice_no} →
+                          </span>
+                        </button>
+                        {c.sale_invoice_id && c.sale_invoice_no && (
+                          <button
+                            onClick={() => onNavigate('sales-detail', c.sale_invoice_id!)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: 'none', background: 'none', borderRadius: 5, cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.subtle; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.ok, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12.5, color: C.ink2 }}>Sale{cycles.length > 1 ? ` #${i + 1}` : ''}</span>
+                            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ok, marginLeft: 'auto' }}>
+                              {c.sale_invoice_no} →
+                            </span>
+                          </button>
+                        )}
+                      </Fragment>
+                    ))}
                   </div>
                 </div>
               </div>
