@@ -213,11 +213,13 @@ function StockRow({ item }: { item: LowStockItem }) {
 }
 
 // ── RecentRow ─────────────────────────────────────────────────────────────
-function RecentRow({ entry }: { entry: RecentEntry }) {
-  const isSale = entry.source_type === 'sale';
+function RecentRow({ entry, onNavigate }: { entry: RecentEntry; onNavigate: (s: Section, id?: number) => void }) {
+  const isSale = entry.source_type === 'sale' || entry.source_type === 'sale_return';
+  const dest = isSale ? 'sales-detail' : 'purchase-detail';
   return (
     <tr
       style={{ cursor: 'pointer' }}
+      onClick={() => onNavigate(dest, entry.source_id)}
       onMouseEnter={e => { Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = '#f9f9f7'; }); }}
       onMouseLeave={e => { Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = ''; }); }}
     >
@@ -246,31 +248,45 @@ function RecentRow({ entry }: { entry: RecentEntry }) {
 }
 
 // ── DashboardScreen ────────────────────────────────────────────────────────
-export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => void }) {
+export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section, id?: number) => void }) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [entryFilter, setEntryFilter] = useState<'all' | 'sale' | 'purchase'>('all');
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [greet] = useState(() => greeting());
   const [dateLbl] = useState(() => dateLabel());
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    const load = async (attempt = 0) => {
+      setLoadError(false);
       try {
         const d = await getDashboardSummary(period);
         if (!cancelled) setData(d);
       } catch (e) {
-        console.error('Dashboard load error:', e);
+        if (attempt < 3 && !cancelled) {
+          setTimeout(() => load(attempt + 1), 800);
+        } else if (!cancelled) {
+          console.error('Dashboard load failed:', e);
+          setLoadError(true);
+        }
       }
     };
     load();
-    const id = setInterval(load, 60_000);
+    const id = setInterval(() => load(), 60_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [period]);
+  }, [period, reloadKey]);
 
   const sales = data?.period_sales ?? 0;
   const purchases = data?.period_purchases ?? 0;
   const critCount = data?.low_stock.filter(i => i.quantity <= 2).length ?? 0;
   const lowCount = (data?.low_stock.length ?? 0) - critCount;
+  const visibleEntries = data?.recent_entries.filter(e =>
+    entryFilter === 'all' ? true :
+    entryFilter === 'sale' ? (e.source_type === 'sale' || e.source_type === 'sale_return') :
+    (e.source_type === 'purchase' || e.source_type === 'purchase_return')
+  ) ?? [];
 
   return (
     <>
@@ -288,6 +304,17 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => vo
           ))}
         </div>
       </div>
+
+      {/* ── Load error banner ── */}
+      {loadError && (
+        <div style={{ padding: '8px 14px', background: '#fff3f3', border: '1px solid #f5c2c2', borderRadius: 6, fontSize: 12.5, color: '#8a1c1c', display: 'flex', alignItems: 'center', gap: 10 }}>
+          Failed to load dashboard data.
+          <span role="button" onClick={() => { setLoadError(false); setData(null); setReloadKey(k => k + 1); }}
+            style={{ color: '#1f3a8a', cursor: 'pointer', textDecoration: 'underline' }}>
+            ↻ Retry
+          </span>
+        </div>
+      )}
 
       {/* ── KPI row ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
@@ -341,13 +368,17 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => vo
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: '1px solid #e5e5e3' }}>
             <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 600 }}>Recent transactions</h3>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6b6b70', background: '#f7f7f5', border: '1px solid #e5e5e3', padding: '1px 6px', borderRadius: 3 }}>
-              {data?.recent_entries.length ?? 0}
+              {visibleEntries.length}
             </span>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ display: 'flex', gap: 1, background: '#f7f7f5', border: '1px solid #e5e5e3', borderRadius: 4, padding: 2, fontSize: 11.5 }}>
-                {['All', 'Sales', 'Purchases'].map(l => (
-                  <span key={l} style={{ padding: '2px 8px', borderRadius: 3, color: l === 'All' ? '#0f0f10' : '#6b6b70', fontWeight: l === 'All' ? 500 : undefined, background: l === 'All' ? '#fff' : undefined, cursor: 'pointer', boxShadow: l === 'All' ? '0 1px 0 rgba(0,0,0,0.03)' : undefined }}>{l}</span>
-                ))}
+                {(['all', 'sale', 'purchase'] as const).map((f, i) => {
+                  const label = ['All', 'Sales', 'Purchases'][i];
+                  const active = entryFilter === f;
+                  return (
+                    <span key={f} onClick={() => setEntryFilter(f)} style={{ padding: '2px 8px', borderRadius: 3, color: active ? '#0f0f10' : '#6b6b70', fontWeight: active ? 500 : undefined, background: active ? '#fff' : undefined, cursor: 'pointer', boxShadow: active ? '0 1px 0 rgba(0,0,0,0.03)' : undefined }}>{label}</span>
+                  );
+                })}
               </div>
               <span
                 role="button"
@@ -375,16 +406,16 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section) => vo
             <tbody>
               {data == null
                 ? <tr><td colSpan={5} style={{ padding: '20px 14px', textAlign: 'center', color: '#9a9aa0' }}>Loading…</td></tr>
-                : data.recent_entries.length === 0
-                  ? <tr><td colSpan={5} style={{ padding: '20px 14px', textAlign: 'center', color: '#9a9aa0' }}>No transactions today</td></tr>
-                  : data.recent_entries.map(e => <RecentRow key={e.id} entry={e} />)
+                : visibleEntries.length === 0
+                  ? <tr><td colSpan={5} style={{ padding: '20px 14px', textAlign: 'center', color: '#9a9aa0' }}>No transactions</td></tr>
+                  : visibleEntries.map(e => <RecentRow key={e.id} entry={e} onNavigate={onNavigate} />)
               }
             </tbody>
           </table>
 
           <div style={{ padding: '8px 14px', borderTop: '1px solid #e5e5e3', background: '#fbfbf9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5, color: '#6b6b70' }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              {data?.recent_entries.length ?? 0} entries · auto-refresh 60s
+              {visibleEntries.length} entries · auto-refresh 60s
             </span>
             <span style={{ display: 'flex', gap: 14 }}>
               <span>Sales <b style={{ color: '#2a2a2c', fontWeight: 500 }}>₨ {fmt(sales)}</b></span>
