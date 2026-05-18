@@ -46,9 +46,9 @@ function Kbd({ children }: { children: string }) {
   return (
     <span style={{
       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-      fontSize: 10, color: '#9a9aa0',
-      border: '1px solid #e5e5e3', borderRadius: 3,
-      padding: '0 4px', background: '#fff',
+      fontSize: 10, color: 'var(--c-muted2)',
+      border: '1px solid var(--c-line)', borderRadius: 3,
+      padding: '0 4px', background: 'var(--c-paper)',
     }}>{children}</span>
   );
 }
@@ -102,8 +102,8 @@ function NavItem({
         height: collapsed ? 38 : undefined,
         borderRadius: collapsed ? 8 : 4,
         justifyContent: collapsed ? 'center' : undefined,
-        background: active ? '#ececea' : hovered ? '#efefec' : undefined,
-        color: active ? '#0f0f10' : '#2a2a2c',
+        background: active ? 'var(--c-nav-active)' : hovered ? 'var(--c-nav-hover)' : undefined,
+        color: active ? 'var(--c-ink)' : 'var(--c-ink2)',
         fontWeight: active ? 500 : undefined,
         cursor: 'pointer',
         userSelect: 'none',
@@ -117,7 +117,7 @@ function NavItem({
           position: 'absolute',
           left: collapsed ? -4 : -8,
           top: 6, bottom: 6,
-          width: 2, background: '#1f3a8a', borderRadius: 2,
+          width: 2, background: 'var(--c-accent)', borderRadius: 2,
         }} />
       )}
 
@@ -129,9 +129,9 @@ function NavItem({
 
       {!collapsed && count !== undefined && (
         <span style={{
-          fontSize: 10.5, color: '#6b6b70',
+          fontSize: 10.5, color: 'var(--c-muted)',
           fontVariantNumeric: 'tabular-nums',
-          background: active ? '#dadad6' : '#ececea',
+          background: active ? 'var(--c-line2)' : 'var(--c-nav-active)',
           padding: '1px 6px', borderRadius: 999, flexShrink: 0,
         }}>{count}</span>
       )}
@@ -142,7 +142,7 @@ function NavItem({
           position: 'absolute',
           left: '100%', top: '50%', transform: 'translateY(-50%)',
           marginLeft: 10,
-          background: '#0f0f10', color: '#fff',
+          background: 'var(--c-ink)', color: 'var(--c-bg)',
           fontSize: 11.5, padding: '5px 9px', borderRadius: 4,
           whiteSpace: 'nowrap', zIndex: 100,
           pointerEvents: 'none',
@@ -150,7 +150,7 @@ function NavItem({
           <span style={{
             position: 'absolute', left: -3, top: '50%',
             transform: 'translateY(-50%) rotate(45deg)',
-            width: 6, height: 6, background: '#0f0f10',
+            width: 6, height: 6, background: 'var(--c-ink)',
           }} />
           {tooltip}
         </span>
@@ -164,7 +164,7 @@ function NavLabel({ children, collapsed }: { children: string; collapsed: boolea
   if (collapsed) return null;
   return (
     <div style={{
-      fontSize: 10.5, fontWeight: 600, color: '#9a9aa0',
+      fontSize: 10.5, fontWeight: 600, color: 'var(--c-muted2)',
       textTransform: 'uppercase', letterSpacing: '0.08em',
       padding: '4px 10px', whiteSpace: 'nowrap',
     }}>{children}</div>
@@ -192,9 +192,9 @@ function QuickAction({
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: '5px 10px', borderRadius: 4,
-        color: '#2a2a2c', cursor: 'pointer',
+        color: 'var(--c-ink2)', cursor: 'pointer',
         whiteSpace: 'nowrap', flexShrink: 0,
-        background: hovered ? '#f7f7f5' : undefined,
+        background: hovered ? 'var(--c-subtle)' : undefined,
         transition: 'background .1s',
       }}
     >
@@ -224,14 +224,14 @@ function CmdResultItem({
       style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '8px 10px', borderRadius: 4,
-        color: '#2a2a2c', cursor: 'pointer', fontSize: 13.5,
-        background: hovered ? '#f7f7f5' : undefined,
+        color: 'var(--c-ink2)', cursor: 'pointer', fontSize: 13.5,
+        background: hovered ? 'var(--c-subtle)' : undefined,
         transition: 'background .1s',
       }}
     >
-      <Ic size={14} style={{ opacity: 1, color: '#6b6b70' }}>{icon}</Ic>
+      <Ic size={14} style={{ opacity: 1, color: 'var(--c-muted)' }}>{icon}</Ic>
       {label}
-      <span style={{ marginLeft: 'auto', fontSize: 11, color: '#6b6b70', fontFamily: "'JetBrains Mono', monospace" }}>{kind}</span>
+      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--c-muted)', fontFamily: "'JetBrains Mono', monospace" }}>{kind}</span>
     </div>
   );
 }
@@ -245,8 +245,8 @@ function Stage({ section, children }: { section: Section; children: ReactNode })
       padding: section === 'dashboard' ? '18px 22px 28px' : fullBleed ? 0 : 22,
       gap: section === 'dashboard' ? 18 : fullBleed ? 0 : 14,
       background: (section === 'dashboard' || fullBleed)
-        ? '#fafaf9'
-        : 'repeating-linear-gradient(45deg, transparent 0 22px, rgba(15,15,16,0.025) 22px 23px)',
+        ? 'var(--c-bg)'
+        : `repeating-linear-gradient(45deg, transparent 0 22px, var(--c-hatch) 22px 23px)`,
       overflowY: 'auto',
       display: 'flex', flexDirection: 'column',
     }}>
@@ -261,12 +261,16 @@ export function AppShell({
   onNavigate,
   canGoBack = false,
   onGoBack,
+  isDark = false,
+  onToggleTheme,
   children,
 }: {
   section: Section;
   onNavigate: (s: Section, id?: number) => void;
   canGoBack?: boolean;
   onGoBack?: () => void;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(() => {
@@ -313,8 +317,8 @@ export function AppShell({
       gridTemplateColumns: expanded ? '240px 1fr' : '60px 1fr',
       height: '100vh',
       overflow: 'hidden',
-      background: '#fafaf9',
-      color: '#0f0f10',
+      background: 'var(--c-bg)',
+      color: 'var(--c-ink)',
       fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
       fontSize: 14,
       lineHeight: 1.45,
@@ -324,8 +328,8 @@ export function AppShell({
 
       {/* ═══ SIDEBAR ══════════════════════════════════════════════════════ */}
       <aside style={{
-        background: '#fbfbf9',
-        borderRight: '1px solid #e5e5e3',
+        background: 'var(--c-sidebar)',
+        borderRight: '1px solid var(--c-line)',
         display: 'flex',
         flexDirection: 'column',
         fontSize: 13.5,
@@ -336,21 +340,21 @@ export function AppShell({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: collapsed ? '14px 8px' : '14px',
-          borderBottom: '1px solid #e5e5e3',
+          borderBottom: '1px solid var(--c-line)',
           height: 60, flexShrink: 0,
           justifyContent: collapsed ? 'center' : undefined,
         }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 7,
-            background: '#0f0f10', color: '#fff',
-            display: 'grid', placeItems: 'center',
-            fontWeight: 700, fontSize: 13, letterSpacing: 0.5,
-            flexShrink: 0,
-          }}>M</div>
+          <svg
+            width={collapsed ? 30 : 26} height={collapsed ? 30 : 26}
+            viewBox="0 0 64 64" aria-label="Cellr"
+            style={{ display: 'block', flexShrink: 0 }}
+          >
+            <rect x="4" y="4" width="56" height="56" rx="13" fill="var(--c-ink)" />
+            <rect x="14" y="15.5" width="36" height="4.5" rx="2.25" fill="var(--c-sidebar)" />
+          </svg>
           {!collapsed && (
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.1, whiteSpace: 'nowrap' }}>MobileShop POS</div>
-              <div style={{ fontSize: 11, color: '#6b6b70', marginTop: 2, whiteSpace: 'nowrap' }}>Karachi · Branch 1</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.035em', whiteSpace: 'nowrap' }}>Cellr</div>
             </div>
           )}
         </div>
@@ -486,7 +490,7 @@ export function AppShell({
             {!collapsed && (
               <div style={{
                 marginLeft: 14,
-                borderLeft: '1px solid #e5e5e3',
+                borderLeft: '1px solid var(--c-line)',
                 paddingLeft: 8,
                 marginTop: 2,
                 overflow: 'hidden',
@@ -518,11 +522,11 @@ export function AppShell({
           onMouseEnter={() => setRailHovered(true)}
           onMouseLeave={() => setRailHovered(false)}
           style={{
-            borderTop: '1px solid #e5e5e3',
+            borderTop: '1px solid var(--c-line)',
             height: 36, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: railHovered ? '#2a2a2c' : '#6b6b70',
-            background: railHovered ? '#f7f7f5' : undefined,
+            color: railHovered ? 'var(--c-ink2)' : 'var(--c-muted)',
+            background: railHovered ? 'var(--c-subtle)' : undefined,
             cursor: 'pointer', fontSize: 12, gap: 8,
             transition: 'background .1s, color .1s',
           }}
@@ -536,8 +540,8 @@ export function AppShell({
             <>
               <span>Collapse</span>
               <span style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#6b6b70',
-                border: '1px solid #e5e5e3', borderRadius: 3, padding: '0 4px', background: '#fff',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--c-muted)',
+                border: '1px solid var(--c-line)', borderRadius: 3, padding: '0 4px', background: 'var(--c-paper)',
               }}>⌘\</span>
             </>
           )}
@@ -545,25 +549,25 @@ export function AppShell({
 
         {/* User footer */}
         <div style={{
-          borderTop: '1px solid #e5e5e3',
+          borderTop: '1px solid var(--c-line)',
           padding: collapsed ? '10px 0' : '10px 12px',
           flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 10,
-          fontSize: 12, color: '#6b6b70',
+          fontSize: 12, color: 'var(--c-muted)',
           justifyContent: collapsed ? 'center' : undefined,
         }}>
           <div style={{
             width: 28, height: 28, borderRadius: '50%',
-            background: '#d6d6d2', display: 'grid', placeItems: 'center',
-            fontSize: 11, fontWeight: 600, color: '#2a2a2c', flexShrink: 0,
+            background: 'var(--c-line2)', display: 'grid', placeItems: 'center',
+            fontSize: 11, fontWeight: 600, color: 'var(--c-ink2)', flexShrink: 0,
           }}>A1</div>
           {!collapsed && (
             <>
-              <div style={{ color: '#2a2a2c', fontWeight: 500, lineHeight: 1.15, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              <div style={{ color: 'var(--c-ink2)', fontWeight: 500, lineHeight: 1.15, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden' }}>
                 Counter 1
-                <small style={{ color: '#6b6b70', fontWeight: 400, display: 'block', fontSize: 11 }}>Signed in 09:14</small>
+                <small style={{ color: 'var(--c-muted)', fontWeight: 400, display: 'block', fontSize: 11 }}>Signed in 09:14</small>
               </div>
-              <div title="Sign out" style={{ color: '#9a9aa0', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'grid', placeItems: 'center' }}>
+              <div title="Sign out" style={{ color: 'var(--c-muted2)', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'grid', placeItems: 'center' }}>
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M6 2H3v12h3"/>
                   <path d="M9 5l3 3-3 3M12 8H6"/>
@@ -580,16 +584,16 @@ export function AppShell({
         {/* Topbar */}
         <div style={{
           height: 60, flexShrink: 0,
-          borderBottom: '1px solid #e5e5e3',
+          borderBottom: '1px solid var(--c-line)',
           display: 'flex', alignItems: 'center', padding: '0 20px',
-          background: '#fff', gap: 16,
+          background: 'var(--c-paper)', gap: 16,
         }}>
           {canGoBack && (
             <button onClick={onGoBack} style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               height: 28, padding: '0 10px', borderRadius: 4,
-              border: '1px solid #e5e5e3', background: '#f7f7f5',
-              cursor: 'pointer', fontSize: 12, color: '#6b6b70',
+              border: '1px solid var(--c-line)', background: 'var(--c-subtle)',
+              cursor: 'pointer', fontSize: 12, color: 'var(--c-muted)',
               fontFamily: 'inherit', flexShrink: 0,
             }}>
               ← Back
@@ -598,7 +602,7 @@ export function AppShell({
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15, minWidth: 140 }}>
             {crumb && (
               <span style={{
-                fontSize: 11, color: '#6b6b70',
+                fontSize: 11, color: 'var(--c-muted)',
                 textTransform: 'uppercase', letterSpacing: '0.06em',
                 fontFamily: "'JetBrains Mono', monospace",
               }}>{crumb}</span>
@@ -609,18 +613,43 @@ export function AppShell({
           {/* Command search */}
           <CmdSearchBar onClick={() => setCmdOpen(true)} />
 
+          {/* Theme toggle */}
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32, borderRadius: 4, flexShrink: 0,
+                border: '1px solid var(--c-line)', background: 'var(--c-subtle)',
+                cursor: 'pointer', color: 'var(--c-muted)',
+              }}
+            >
+              {isDark ? (
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="8" cy="8" r="3"/>
+                  <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/>
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13.5 10A6 6 0 016 2.5a6 6 0 000 11 6 6 0 007.5-3.5z"/>
+                </svg>
+              )}
+            </button>
+          )}
+
           {/* Clock */}
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 12, color: '#2a2a2c',
+            fontSize: 12, color: 'var(--c-ink2)',
             fontVariantNumeric: 'tabular-nums',
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '6px 10px',
-            border: '1px solid #e5e5e3', borderRadius: 4,
-            background: '#f7f7f5', flexShrink: 0,
+            border: '1px solid var(--c-line)', borderRadius: 4,
+            background: 'var(--c-subtle)', flexShrink: 0,
           }}>
             <span className="pos-pulse" />
-            <span style={{ color: '#6b6b70' }}>{clock.date}</span>
+            <span style={{ color: 'var(--c-muted)' }}>{clock.date}</span>
             <span style={{ fontWeight: 500 }}>{clock.time}</span>
           </div>
         </div>
@@ -629,8 +658,8 @@ export function AppShell({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4,
           padding: '6px 14px',
-          borderBottom: '1px solid #e5e5e3',
-          background: '#fdfdfb', fontSize: 12.5, flexShrink: 0,
+          borderBottom: '1px solid var(--c-line)',
+          background: 'var(--c-paper)', fontSize: 12.5, flexShrink: 0,
           overflowX: 'auto',
         }}>
           <QuickAction
@@ -643,7 +672,7 @@ export function AppShell({
             label="New purchase" kbd="⌘⇧N"
             onClick={nav('purchase-new')}
           />
-          <span style={{ width: 1, height: 14, background: '#e5e5e3', margin: '0 4px', flexShrink: 0 }} />
+          <span style={{ width: 1, height: 14, background: 'var(--c-line)', margin: '0 4px', flexShrink: 0 }} />
           <QuickAction
             icon={<><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></>}
             label="Find IMEI" kbd="⌘I"
@@ -654,14 +683,14 @@ export function AppShell({
             label="Recent invoices" kbd="⌘L"
             onClick={nav('sales-list')}
           />
-          <span style={{ width: 1, height: 14, background: '#e5e5e3', margin: '0 4px', flexShrink: 0 }} />
+          <span style={{ width: 1, height: 14, background: 'var(--c-line)', margin: '0 4px', flexShrink: 0 }} />
           <QuickAction
             icon={<><path d="M3 3h10v10H3z"/><path d="M6 8l2 2 4-4"/></>}
             label="Today's totals" kbd="⌘T"
             onClick={nav('dashboard')}
           />
-          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#6b6b70', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '5px 8px' }}>
-            Press <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, border: '1px solid #d6d6d2', borderRadius: 3, padding: '0 4px', background: '#fff', color: '#2a2a2c' }}>?</span> for all shortcuts
+          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--c-muted)', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '5px 8px' }}>
+            Press <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, border: '1px solid var(--c-line2)', borderRadius: 3, padding: '0 4px', background: 'var(--c-paper)', color: 'var(--c-ink2)' }}>?</span> for all shortcuts
           </span>
         </div>
 
@@ -675,22 +704,22 @@ export function AppShell({
           onClick={e => { if (e.target === e.currentTarget) setCmdOpen(false); }}
           style={{
             position: 'fixed', inset: 0,
-            background: 'rgba(15,15,16,0.32)',
+            background: 'var(--c-overlay)',
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
             paddingTop: '14vh', zIndex: 200,
           }}
         >
           <div style={{
             width: 'min(620px, 92vw)',
-            background: '#fff',
-            border: '1px solid #d6d6d2',
+            background: 'var(--c-paper)',
+            border: '1px solid var(--c-line2)',
             borderRadius: 8,
             boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
             overflow: 'hidden',
           }}>
             {/* Input */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #e5e5e3' }}>
-              <Ic size={15} style={{ opacity: 1, color: '#6b6b70' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--c-line)' }}>
+              <Ic size={15} style={{ opacity: 1, color: 'var(--c-muted)' }}>
                 <circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/>
               </Ic>
               <input
@@ -699,30 +728,30 @@ export function AppShell({
                 style={{
                   flex: 1, border: 0, outline: 'none',
                   fontFamily: "'Inter Variable', 'Inter', sans-serif",
-                  fontSize: 15, background: 'transparent', color: '#0f0f10',
+                  fontSize: 15, background: 'transparent', color: 'var(--c-ink)',
                 }}
               />
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#6b6b70', border: '1px solid #e5e5e3', borderRadius: 3, padding: '1px 5px', background: '#f7f7f5' }}>Esc</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--c-muted)', border: '1px solid var(--c-line)', borderRadius: 3, padding: '1px 5px', background: 'var(--c-subtle)' }}>Esc</span>
             </div>
 
             {/* Results */}
             <div style={{ padding: 6, maxHeight: 360, overflowY: 'auto' }}>
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a9aa0', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 10px 4px' }}>Actions</div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--c-muted2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 10px 4px' }}>Actions</div>
               <CmdResultItem icon={<path d="M8 3v10M3 8h10"/>} label="New sales invoice" kind="⌘N" onClick={() => { onNavigate('sales-new'); setCmdOpen(false); }} />
               <CmdResultItem icon={<><path d="M3 3h10v10H3z"/><path d="M3 6h10"/></>} label="New purchase invoice" kind="⌘⇧N" onClick={() => { onNavigate('purchase-new'); setCmdOpen(false); }} />
               <CmdResultItem icon={<><path d="M3 3h10v10H3z"/><path d="M6 8l2 2 4-4"/></>} label="Record sales return" kind="action" onClick={() => { onNavigate('sales-return'); setCmdOpen(false); }} />
 
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#9a9aa0', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 10px 4px' }}>Jump to</div>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--c-muted2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 10px 4px' }}>Jump to</div>
               <CmdResultItem icon={<><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></>} label="Dashboard" kind="G D" onClick={() => { onNavigate('dashboard'); setCmdOpen(false); }} />
               <CmdResultItem icon={<><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 7h12"/></>} label="Inventory · Stock" kind="G S" onClick={() => { onNavigate('inventory-stock'); setCmdOpen(false); }} />
               <CmdResultItem icon={<><path d="M3 3v10h10"/><path d="M5 11l3-3 2 2 3-4"/></>} label="Accounts · Ledger" kind="G L" onClick={() => { onNavigate('accounts-ledger'); setCmdOpen(false); }} />
             </div>
 
             {/* Footer */}
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '8px 16px', borderTop: '1px solid #e5e5e3', fontSize: 11, color: '#6b6b70', background: '#f7f7f5' }}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '8px 16px', borderTop: '1px solid var(--c-line)', fontSize: 11, color: 'var(--c-muted)', background: 'var(--c-subtle)' }}>
               {[['↑↓', 'navigate'], ['↵', 'select'], ['Esc', 'close']].map(([k, l]) => (
                 <span key={k}>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, border: '1px solid #d6d6d2', borderRadius: 3, padding: '0 4px', background: '#fff', color: '#2a2a2c', marginRight: 4 }}>{k}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, border: '1px solid var(--c-line2)', borderRadius: 3, padding: '0 4px', background: 'var(--c-paper)', color: 'var(--c-ink2)', marginRight: 4 }}>{k}</span>
                   {l}
                 </span>
               ))}
@@ -749,10 +778,10 @@ function CmdSearchBar({ onClick }: { onClick: () => void }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         flex: 1, maxWidth: 620, height: 36,
-        border: `1px solid ${hovered ? '#d6d6d2' : '#e5e5e3'}`,
+        border: `1px solid ${hovered ? 'var(--c-line2)' : 'var(--c-line)'}`,
         borderRadius: 4,
-        background: '#f7f7f5', padding: '0 12px',
-        fontSize: 13, color: '#6b6b70',
+        background: 'var(--c-subtle)', padding: '0 12px',
+        fontSize: 13, color: 'var(--c-muted)',
         display: 'flex', alignItems: 'center', gap: 10,
         cursor: 'text',
         transition: 'border-color .12s',
@@ -764,7 +793,7 @@ function CmdSearchBar({ onClick }: { onClick: () => void }) {
       </span>
       <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, flexShrink: 0 }}>
         {['⌘', 'K'].map(k => (
-          <span key={k} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#2a2a2c', border: '1px solid #d6d6d2', borderRadius: 3, padding: '1px 5px', background: '#fff' }}>{k}</span>
+          <span key={k} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--c-ink2)', border: '1px solid var(--c-line2)', borderRadius: 3, padding: '1px 5px', background: 'var(--c-paper)' }}>{k}</span>
         ))}
       </div>
     </div>
@@ -798,8 +827,8 @@ function MastersToggle({
         height: collapsed ? 38 : undefined,
         borderRadius: collapsed ? 8 : 4,
         justifyContent: collapsed ? 'center' : undefined,
-        background: active ? '#ececea' : hovered ? '#efefec' : undefined,
-        color: active ? '#0f0f10' : '#2a2a2c',
+        background: active ? 'var(--c-nav-active)' : hovered ? 'var(--c-nav-hover)' : undefined,
+        color: active ? 'var(--c-ink)' : 'var(--c-ink2)',
         fontWeight: active ? 500 : undefined,
         cursor: 'pointer', userSelect: 'none',
         transition: 'background .1s',
@@ -811,7 +840,7 @@ function MastersToggle({
           position: 'absolute',
           left: collapsed ? -4 : -8,
           top: 6, bottom: 6,
-          width: 2, background: '#1f3a8a', borderRadius: 2,
+          width: 2, background: 'var(--c-accent)', borderRadius: 2,
         }} />
       )}
       <Ic style={{ opacity: 0.85 }}>
@@ -822,7 +851,7 @@ function MastersToggle({
         <>
           <span style={{ flex: 1, fontSize: 13.5 }}>Master data</span>
           <span style={{
-            fontSize: 9, color: '#6b6b70', flexShrink: 0,
+            fontSize: 9, color: 'var(--c-muted)', flexShrink: 0,
             display: 'inline-block',
             transition: 'transform .15s',
             transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
@@ -835,12 +864,12 @@ function MastersToggle({
           position: 'absolute',
           left: '100%', top: '50%', transform: 'translateY(-50%)',
           marginLeft: 10,
-          background: '#0f0f10', color: '#fff',
+          background: 'var(--c-ink)', color: 'var(--c-bg)',
           fontSize: 11.5, padding: '5px 9px', borderRadius: 4,
           whiteSpace: 'nowrap', zIndex: 100,
           pointerEvents: 'none',
         }}>
-          <span style={{ position: 'absolute', left: -3, top: '50%', transform: 'translateY(-50%) rotate(45deg)', width: 6, height: 6, background: '#0f0f10' }} />
+          <span style={{ position: 'absolute', left: -3, top: '50%', transform: 'translateY(-50%) rotate(45deg)', width: 6, height: 6, background: 'var(--c-ink)' }} />
           Master data
         </span>
       )}
@@ -863,7 +892,7 @@ function ChildNavItem({ label, active, onClick }: { label: string; active: boole
         cursor: 'pointer', userSelect: 'none',
         borderRadius: 4, padding: '5px 8px',
         fontSize: 13,
-        color: active ? '#0f0f10' : hovered ? '#2a2a2c' : '#6b6b70',
+        color: active ? 'var(--c-ink)' : hovered ? 'var(--c-ink2)' : 'var(--c-muted)',
         fontWeight: active ? 500 : undefined,
         transition: 'color .1s',
       }}

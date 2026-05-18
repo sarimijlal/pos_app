@@ -119,6 +119,68 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ── Cellr semantic palette — light ── */
+:root {
+  --c-bg: #fafaf9;
+  --c-paper: #ffffff;
+  --c-sidebar: #fbfbf9;
+  --c-subtle: #f7f7f5;
+  --c-ink: #0f0f10;
+  --c-ink2: #2a2a2c;
+  --c-muted: #6b6b70;
+  --c-muted2: #9a9aa0;
+  --c-line: #e5e5e3;
+  --c-line2: #d6d6d2;
+  --c-nav-active: #ececea;
+  --c-nav-hover: #efefec;
+  --c-accent: #1f3a8a;
+  --c-accent-bg: #e6ebf7;
+  --c-accent-ring: rgba(31,58,138,0.18);
+  --c-hatch: rgba(15,15,16,0.025);
+  --c-overlay: rgba(15,15,16,0.32);
+  --c-ok: #0f7a4a;
+  --c-ok-bg: #e6f3ec;
+  --c-warn: #8a6a00;
+  --c-warn-bg: #fbf2d9;
+  --c-bad: #8a1c1c;
+  --c-bad-bg: #f7e6e6;
+  --c-ok-border: rgba(15,122,74,0.22);
+  --c-accent-border: rgba(31,58,138,0.22);
+  --c-warn-border: rgba(138,106,0,0.28);
+  --c-bad-border: rgba(138,28,28,0.22);
+}
+
+/* ── Cellr semantic palette — dark ── */
+.dark {
+  --c-bg: #111113;
+  --c-paper: #1c1c1e;
+  --c-sidebar: #171719;
+  --c-subtle: #232325;
+  --c-ink: #f0f0ef;
+  --c-ink2: #c8c8c4;
+  --c-muted: #8a8a90;
+  --c-muted2: #5c5c62;
+  --c-line: #2d2d2f;
+  --c-line2: #3a3a3c;
+  --c-nav-active: #2a2a2c;
+  --c-nav-hover: #252527;
+  --c-accent: #4d72d4;
+  --c-accent-bg: #1a2340;
+  --c-accent-ring: rgba(77,114,212,0.25);
+  --c-hatch: rgba(255,255,255,0.025);
+  --c-overlay: rgba(0,0,0,0.55);
+  --c-ok: #2ea86e;
+  --c-ok-bg: #0e2b1e;
+  --c-warn: #c49a00;
+  --c-warn-bg: #2b2400;
+  --c-bad: #d95555;
+  --c-bad-bg: #2e1010;
+  --c-ok-border: rgba(46,168,110,0.35);
+  --c-accent-border: rgba(77,114,212,0.35);
+  --c-warn-border: rgba(196,154,0,0.35);
+  --c-bad-border: rgba(217,85,85,0.35);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -128,6 +190,7 @@
     }
   html {
     @apply font-sans;
+    transition: background-color 150ms ease, color 150ms ease;
     }
 }
 
@@ -137,7 +200,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #0f0f10;
+  background: var(--c-ink);
   opacity: 0.2;
   animation: cellr-dot-breathe 1.4s ease-in-out infinite;
 }
@@ -152,7 +215,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #0f7a4a;
+  background: var(--c-ok);
   position: relative;
   display: inline-block;
   flex-shrink: 0;
@@ -162,7 +225,7 @@
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 1px solid #0f7a4a;
+  border: 1px solid var(--c-ok);
   opacity: 0.6;
   animation: pos-pulse 2.4s ease-out infinite;
 }
@@ -175,24 +238,24 @@
 /* ── POS Shell scrollbar ── */
 .pos-nav-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #d6d6d2 transparent;
+  scrollbar-color: var(--c-line2) transparent;
 }
 
 /* ── Sales Form — header inputs ── */
 .sf-input:focus {
-  border-color: #1f3a8a !important;
-  box-shadow: 0 0 0 3px rgba(31,58,138,0.18) !important;
+  border-color: var(--c-accent) !important;
+  box-shadow: 0 0 0 3px var(--c-accent-ring) !important;
   outline: none;
 }
 .sf-textarea:focus {
-  border-color: #1f3a8a !important;
-  box-shadow: 0 0 0 3px rgba(31,58,138,0.18) !important;
+  border-color: var(--c-accent) !important;
+  box-shadow: 0 0 0 3px var(--c-accent-ring) !important;
   outline: none;
 }
 /* ── Sales Form — table cell inputs ── */
 .sf-cell:focus {
-  background: #f4f5f9 !important;
-  box-shadow: inset 0 0 0 2px #1f3a8a !important;
+  background: var(--c-subtle) !important;
+  box-shadow: inset 0 0 0 2px var(--c-accent) !important;
   outline: none;
 }
 .sf-cell-ro:focus {

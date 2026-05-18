@@ -6,17 +6,7 @@ import { usePurchaseStore } from '../store';
 import type { Supplier, Item } from '../../../../interfaces';
 import type { PurchaseLineInput } from '../types';
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-  paper: '#ffffff', ink: '#0f0f10', ink2: '#2a2a2c',
-  muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2', subtle: '#f7f7f5',
-  bad: '#8a1c1c', badBg: '#f7e6e6',
-  ok: '#0f7a4a', okBg: '#e6f3ec',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  accent: '#1f3a8a', accentFg: '#ffffff',
-} as const;
+import { C } from '../../../lib/theme';
 
 function fmtNum(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

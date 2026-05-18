@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react';
 import { getPurchaseInvoiceById } from '../../../db/repositories/purchase';
 import type { PurchaseInvoiceDetail } from '../types';
 
-const C = {
-  ink: '#0f0f10', ink2: '#2a2a2c', ink3: '#6b6b70', muted: '#9a9aa0',
-  paper: '#ffffff', bg: '#fafaf9', line: '#e5e5e3', line2: '#d6d6d2',
-  accent: '#1f3a8a', ok: '#0f7a4a', warn: '#b08800', danger: '#8a1c1c',
-  accentBg: '#e6ebf7', okBg: '#e6f3ec', warnBg: '#fbf2d9',
-};
+import { C as _C } from '../../../lib/theme';
+const C = { ..._C, ink3: _C.muted, muted: _C.muted2, danger: _C.bad, accentBg: _C.infoBg };
 
 function fmt(n: number) {
   return n.toLocaleString('en-PK', { maximumFractionDigits: 0 });
@@ -159,7 +155,7 @@ export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: 
                 <tr>
                   {[['#', 32], ['Item', undefined], ['Qty', 70], ['Rate', 120], ['Total', 120]].map(([h, w]) => (
                     <th key={h as string} style={{
-                      padding: '9px 14px', background: '#fbfbf9',
+                      padding: '9px 14px', background: 'var(--c-sidebar)',
                       borderBottom: `1px solid ${C.line}`,
                       textAlign: (h === 'Rate' || h === 'Total') ? 'right' : 'left',
                       fontSize: 10.5, fontWeight: 600, color: C.ink3,
@@ -224,7 +220,7 @@ export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: 
 
             {/* Footer total */}
             <div style={{
-              padding: '12px 14px', borderTop: `1px solid ${C.line}`, background: '#fbfbf9',
+              padding: '12px 14px', borderTop: `1px solid ${C.line}`, background: 'var(--c-sidebar)',
               display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10,
             }}>
               <span style={{ fontSize: 12, color: C.ink3 }}>Total</span>

@@ -6,16 +6,7 @@ import {
 } from '../../../db/repositories/inventory';
 import type { MobileInventoryRow, AccessoryInventoryRow, ItemImeiRow } from '../types';
 
-const C = {
-  bg: '#fafaf9', paper: '#ffffff',
-  ink: '#0f0f10', ink2: '#2a2a2c', muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2',
-  ok: '#0f7a4a', okBg: '#e6f3ec',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  bad: '#8a1c1c', badBg: '#f7e6e6',
-  subtle: '#f7f7f5',
-};
+import { C } from '../../../lib/theme';
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();

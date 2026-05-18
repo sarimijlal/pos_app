@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getDb } from './db/client';
 import { AppShell, type Section } from './components/AppShell';
+import { useTheme } from './lib/theme';
 import { DashboardScreen } from './modules/dashboard/DashboardScreen';
 import { SalesForm } from './modules/sales/components/SalesForm';
 import { SalesListScreen } from './modules/sales/components/SalesListScreen';
@@ -46,6 +47,7 @@ function PlaceholderScreen({ title, section }: { title: string; section: string 
 type NavEntry = { section: Section; invoiceId: number | null; imei: string | null };
 
 function App() {
+  const { isDark, toggle: toggleTheme } = useTheme();
   const [section, setSection] = useState<Section>('dashboard');
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -93,7 +95,7 @@ function App() {
   }
 
   return (
-    <AppShell section={section} onNavigate={navigate} canGoBack={navHistory.length > 0} onGoBack={goBack}>
+    <AppShell section={section} onNavigate={navigate} canGoBack={navHistory.length > 0} onGoBack={goBack} isDark={isDark} onToggleTheme={toggleTheme}>
       {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
       {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={goBack} />}
       {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={(id) => navigate('sales-detail', id)} onReturn={(id) => navigate('sales-return', id)} />}

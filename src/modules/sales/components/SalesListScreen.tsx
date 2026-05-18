@@ -5,15 +5,7 @@ import { getSalespersons } from '@/db/repositories/sales';
 import type { SalesInvoiceRow } from '../types';
 import type { Customer, Salesperson } from '../../../../interfaces';
 
-const C = {
-  ink: '#0f0f10', ink2: '#2a2a2c', muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2', paper: '#ffffff', bg: '#fafaf9',
-  subtle: '#f7f7f5',
-  ok: '#0f7a4a', okBg: '#e6f3ec',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  accent: '#1f3a8a',
-};
+import { C } from '../../../lib/theme';
 
 type PayMode = 'all' | 'cash' | 'credit' | 'card' | 'bank';
 type SortCol = 'date' | 'no' | 'total';

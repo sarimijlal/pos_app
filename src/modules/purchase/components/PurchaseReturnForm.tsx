@@ -2,18 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getPurchaseInvoices, getPurchaseInvoiceById, savePurchaseReturn } from '../../../db/repositories/purchase';
 import type { PurchaseInvoiceRow, PurchaseInvoiceDetail, PurchaseReturnLineInput, SavePurchaseReturnInput } from '../types';
 
-const C = {
-  bg: '#fafaf9', paper: '#ffffff',
-  ink: '#0f0f10', ink2: '#2a2a2c',
-  muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2',
-  subtle: '#f7f7f5',
-  ok: '#0f7a4a',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  bad: '#8a1c1c',
-  accent: '#1f3a8a', accentFg: '#ffffff',
-} as const;
+import { C } from '../../../lib/theme';
 
 const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtNum = (n: number) => n.toLocaleString('en-US');
