@@ -47,12 +47,13 @@ type NavEntry = { section: Section; invoiceId: number | null; imei: string | nul
 function App() {
   const [section, setSection] = useState<Section>('dashboard');
   const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [selectedImei, setSelectedImei] = useState<string | null>(null);
   const [navHistory, setNavHistory] = useState<NavEntry[]>([]);
 
   useEffect(() => {
-    getDb().then(() => setDbReady(true)).catch(console.error);
+    getDb().then(() => setDbReady(true)).catch(e => setDbError(String(e)));
   }, []);
 
   const navigate = (s: Section, id?: number, imei?: string) => {
@@ -80,8 +81,19 @@ function App() {
 
   if (!dbReady) {
     return (
-      <div style={{ height: '100vh', display: 'grid', placeItems: 'center', background: '#fafaf9', color: '#9a9aa0', fontFamily: "'Inter Variable','Inter',sans-serif", fontSize: 13 }}>
-        Initialising…
+      <div style={{ height: '100vh', display: 'grid', placeItems: 'center', background: '#fafaf9', fontFamily: "'Inter Variable','Inter',sans-serif", fontSize: 13, textAlign: 'center', padding: 24 }}>
+        {dbError ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
+            <div style={{ color: '#8a1c1c', fontWeight: 600, fontSize: 15 }}>Database failed to load</div>
+            <pre style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6b6b70', background: '#f7f7f5', border: '1px solid #e5e5e3', borderRadius: 4, padding: '8px 12px', textAlign: 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{dbError}</pre>
+            <button onClick={() => { setDbError(null); getDb().then(() => setDbReady(true)).catch(e => setDbError(String(e))); }}
+              style={{ height: 32, padding: '0 16px', border: '1px solid #e5e5e3', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: 12 }}>
+              ↻ Retry
+            </button>
+          </div>
+        ) : (
+          <div style={{ color: '#9a9aa0' }}>Initialising…</div>
+        )}
       </div>
     );
   }
