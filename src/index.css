@@ -131,6 +131,22 @@
     }
 }
 
+/* ── Cellr loading screen dots ── */
+.cellr-dot {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #0f0f10;
+  opacity: 0.2;
+  animation: cellr-dot-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes cellr-dot-breathe {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  40%      { opacity: 1;   transform: scale(1.25); }
+}
+
 /* ── POS Shell pulse animation ── */
 .pos-pulse {
   width: 6px;
