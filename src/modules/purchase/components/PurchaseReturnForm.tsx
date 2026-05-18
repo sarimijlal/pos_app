@@ -203,7 +203,7 @@ export function PurchaseReturnForm({ initialInvoiceId, onSaved, onCancel }: Prop
     setLoadingList(true);
     getPurchaseInvoices()
       .then(rows => setInvoiceList(rows.filter(r => r.status === 'active')))
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoadingList(false));
     setTimeout(() => pickerInputRef.current?.focus(), 60);
   }, [showPicker]);

@@ -49,15 +49,19 @@ function StatusChip({ status }: { status: string }) {
 
 export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: number | null; onBack: () => void }) {
   const [inv, setInv] = useState<PurchaseInvoiceDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (invoiceId == null) { setLoading(false); return; }
-    setLoading(true);
+    if (invoiceId == null) { setLoadState('success'); return; }
+    setLoadState('loading');
     getPurchaseInvoiceById(invoiceId)
-      .then(d => setInv(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .then(d => { setInv(d); setLoadState('success'); })
+      .catch(e => {
+        console.error('Failed to load purchase invoice:', e);
+        setErrorMsg(e instanceof Error ? e.message : String(e));
+        setLoadState('error');
+      });
   }, [invoiceId]);
 
   return (
@@ -92,19 +96,25 @@ export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: 
         </span>
       </div>
 
-      {loading && (
+      {loadState === 'loading' && (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.muted, fontSize: 13 }}>
           Loading…
         </div>
       )}
 
-      {!loading && !inv && (
+      {loadState === 'error' && (
+        <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.danger, fontSize: 13 }}>
+          Failed to load invoice.{errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 8, opacity: 0.8 }}>{errorMsg}</span>}
+        </div>
+      )}
+
+      {loadState === 'success' && !inv && (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.muted, fontSize: 13 }}>
           Invoice not found.
         </div>
       )}
 
-      {!loading && inv && (
+      {loadState === 'success' && inv && (
         <>
           {/* Meta grid */}
           <div style={{

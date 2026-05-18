@@ -206,7 +206,7 @@ export function SalesReturnForm({ initialInvoiceId, onSaved, onCancel }: Props) 
     setLoadingList(true);
     getSalesInvoices()
       .then(rows => setInvoiceList(rows.filter(r => r.status === 'active')))
-      .catch(() => {})
+      .catch(e => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoadingList(false));
     setTimeout(() => pickerInputRef.current?.focus(), 60);
   }, [showPicker]);

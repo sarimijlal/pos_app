@@ -148,7 +148,8 @@ interface Props {
 export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
   const [rows, setRows] = useState<PurchaseInvoiceRow[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const [filters, setFilters] = useState<Filters>({
     supplierId: null, payment: 'all', search: '',
@@ -174,13 +175,16 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
 
   useEffect(() => {
     async function load() {
-      setLoading(true);
+      setLoadState('loading');
       try {
         const [inv, sup] = await Promise.all([getPurchaseInvoices(), getSuppliers()]);
         setRows(inv);
         setSuppliers(sup);
-      } finally {
-        setLoading(false);
+        setLoadState('success');
+      } catch (e) {
+        console.error('Purchase list load failed:', e);
+        setErrorMsg(e instanceof Error ? e.message : String(e));
+        setLoadState('error');
       }
     }
     load();
@@ -345,7 +349,12 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={() => { setLoading(true); getPurchaseInvoices().then(r => setRows(r)).finally(() => setLoading(false)); }}
+            onClick={() => {
+              setLoadState('loading');
+              getPurchaseInvoices()
+                .then(r => { setRows(r); setLoadState('success'); })
+                .catch(e => { setErrorMsg(e instanceof Error ? e.message : String(e)); setLoadState('error'); });
+            }}
             title="Refresh"
             style={{ width: 32, height: 32, border: `1px solid ${C.line2}`, background: C.paper, color: C.ink2, cursor: 'pointer', borderRadius: 4, display: 'grid', placeItems: 'center' }}
           >
@@ -373,6 +382,28 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {loadState === 'error' && (
+        <div style={{ padding: '8px 14px', background: '#fff3f3', border: '1px solid rgba(138,28,28,0.22)', borderRadius: 6, fontSize: 12.5, color: '#8a1c1c', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>
+            Failed to load invoices.
+            {errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 6, opacity: 0.8 }}>{errorMsg}</span>}
+          </span>
+          <span
+            role="button"
+            onClick={() => {
+              setLoadState('loading');
+              Promise.all([getPurchaseInvoices(), getSuppliers()])
+                .then(([inv, sup]) => { setRows(inv); setSuppliers(sup); setLoadState('success'); })
+                .catch(e => { setErrorMsg(e instanceof Error ? e.message : String(e)); setLoadState('error'); });
+            }}
+            style={{ color: '#1f3a8a', cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto' }}
+          >
+            ↻ Retry
+          </span>
+        </div>
+      )}
 
       {/* Filter card */}
       <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 6 }}>
@@ -613,7 +644,7 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
 
         {/* Table scroll */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {loading ? (
+          {loadState === 'loading' ? (
             <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>

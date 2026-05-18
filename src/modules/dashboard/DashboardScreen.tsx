@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getDashboardSummary } from '../../db/repositories/accounting';
 import type { DashboardSummary, LowStockItem, RecentEntry } from '../accounting/types';
 import type { Section } from '../../components/AppShell';
@@ -252,31 +252,29 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section, id?: 
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [period, setPeriod] = useState<'today' | 'week' | 'month'>('today');
   const [entryFilter, setEntryFilter] = useState<'all' | 'sale' | 'purchase'>('all');
-  const [loadError, setLoadError] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
   const [greet] = useState(() => greeting());
   const [dateLbl] = useState(() => dateLabel());
 
+  const load = useCallback(async () => {
+    setLoadState('loading');
+    try {
+      const d = await getDashboardSummary(period);
+      setData(d);
+      setLoadState('success');
+    } catch (e) {
+      console.error('Dashboard load failed:', e);
+      setErrorMsg(e instanceof Error ? e.message : String(e));
+      setLoadState('error');
+    }
+  }, [period]);
+
   useEffect(() => {
-    let cancelled = false;
-    const load = async (attempt = 0) => {
-      setLoadError(false);
-      try {
-        const d = await getDashboardSummary(period);
-        if (!cancelled) setData(d);
-      } catch (e) {
-        if (attempt < 3 && !cancelled) {
-          setTimeout(() => load(attempt + 1), 800);
-        } else if (!cancelled) {
-          console.error('Dashboard load failed:', e);
-          setLoadError(true);
-        }
-      }
-    };
     load();
-    const id = setInterval(() => load(), 60_000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [period, reloadKey]);
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const sales = data?.period_sales ?? 0;
   const purchases = data?.period_purchases ?? 0;
@@ -306,11 +304,14 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section, id?: 
       </div>
 
       {/* ── Load error banner ── */}
-      {loadError && (
+      {loadState === 'error' && (
         <div style={{ padding: '8px 14px', background: '#fff3f3', border: '1px solid #f5c2c2', borderRadius: 6, fontSize: 12.5, color: '#8a1c1c', display: 'flex', alignItems: 'center', gap: 10 }}>
-          Failed to load dashboard data.
-          <span role="button" onClick={() => { setLoadError(false); setData(null); setReloadKey(k => k + 1); }}
-            style={{ color: '#1f3a8a', cursor: 'pointer', textDecoration: 'underline' }}>
+          <span>
+            Failed to load dashboard data.
+            {errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 6, opacity: 0.8 }}>{errorMsg}</span>}
+          </span>
+          <span role="button" onClick={load}
+            style={{ color: '#1f3a8a', cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto' }}>
             ↻ Retry
           </span>
         </div>
