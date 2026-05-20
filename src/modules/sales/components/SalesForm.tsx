@@ -88,7 +88,7 @@ function LineRow({ rowNum, line, items, onPickItem, onPatch, onAddImei, onRemove
   const filteredItems = items.filter(it => !itemSearch || it.name.toLowerCase().includes(itemSearch.toLowerCase()));
   const filteredAvail = line.availableImeis.filter(im => !line.imeiSearch || im.includes(line.imeiSearch));
 
-  const tdBg = rowHovered && !isEmpty ? '#fafaf8' : C.paper;
+  const tdBg = rowHovered && !isEmpty ? 'var(--c-subtle)' : C.paper;
   const td: React.CSSProperties = { padding: 0, borderBottom: `1px solid ${C.line}`, verticalAlign: 'middle', position: 'relative', background: tdBg };
   const cellIn: React.CSSProperties = { width: '100%', height: 44, border: 0, outline: 0, background: 'transparent', padding: '0 10px', fontFamily: 'inherit', fontSize: 13, color: C.ink };
 
@@ -114,7 +114,7 @@ function LineRow({ rowNum, line, items, onPickItem, onPatch, onAddImei, onRemove
                 setItemSearch('');
               }
             }}
-            style={{ height: 44, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, background: itemPopOpen ? '#f4f5f9' : 'transparent', boxShadow: itemPopOpen ? `inset 0 0 0 2px ${C.accent}` : 'none' }}
+            style={{ height: 44, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, background: itemPopOpen ? 'var(--c-accent-bg)' : 'transparent', boxShadow: itemPopOpen ? `inset 0 0 0 2px ${C.accent}` : 'none' }}
             onMouseEnter={e => { if (!itemPopOpen) e.currentTarget.style.background = C.subtle; }}
             onMouseLeave={e => { if (!itemPopOpen) e.currentTarget.style.background = 'transparent'; }}
           >
@@ -178,9 +178,9 @@ function LineRow({ rowNum, line, items, onPickItem, onPatch, onAddImei, onRemove
                 setTimeout(() => imeiInputRef.current?.focus(), 10);
               }
             }}
-            style={{ minHeight: 44, padding: '6px 8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, cursor: 'text', position: 'relative', fontSize: 13, background: line.imeiCellOpen ? '#f4f5f9' : 'transparent', boxShadow: line.imeiCellOpen ? `inset 0 0 0 2px ${C.accent}` : 'none' }}
+            style={{ minHeight: 44, padding: '6px 8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, cursor: 'text', position: 'relative', fontSize: 13, background: line.imeiCellOpen ? 'var(--c-accent-bg)' : 'transparent', boxShadow: line.imeiCellOpen ? `inset 0 0 0 2px ${C.accent}` : 'none' }}
             onMouseEnter={e => { if (!line.imeiCellOpen) e.currentTarget.style.background = C.subtle; }}
-            onMouseLeave={e => { if (!line.imeiCellOpen) e.currentTarget.style.background = line.imeiCellOpen ? '#f4f5f9' : 'transparent'; }}
+            onMouseLeave={e => { if (!line.imeiCellOpen) e.currentTarget.style.background = line.imeiCellOpen ? 'var(--c-accent-bg)' : 'transparent'; }}
           >
             {line.imeis.length === 0 && !line.imeiCellOpen && (
               <span style={{ color: C.muted2, padding: '0 4px', fontSize: 12.5 }}>
@@ -748,7 +748,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.line2; e.currentTarget.style.background = C.paper; }}
             >Cancel</button>
             <button type="button" onClick={handleSave} disabled={saving}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: saving ? '#8a9ec0' : C.accent, color: C.accentFg, border: 'none', cursor: saving ? 'not-allowed' : 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: saving ? C.line2 : C.accent, color: C.accentFg, border: 'none', cursor: saving ? 'not-allowed' : 'pointer' }}
             >
               {saving ? 'Saving…' : <><span>Save invoice</span><Kbd>Ctrl+S</Kbd></>}
             </button>
