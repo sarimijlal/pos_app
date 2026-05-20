@@ -40,3 +40,13 @@ export type DashboardSummary = {
   low_stock: LowStockItem[];
   recent_entries: RecentEntry[];
 };
+
+export type LedgerRow = {
+  journal_entry_id: number;
+  date: string;
+  reference_no: string;
+  narration: string;
+  source_type: string;
+  movement: number;
+  balance: number;
+};

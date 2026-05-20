@@ -7,6 +7,7 @@ export type Supplier = {
   is_active: number;
   created_at: string;
   balance: number;
+  invoice_count: number;
 };
 
 export type Customer = {
@@ -17,6 +18,8 @@ export type Customer = {
   is_active: number;
   created_at: string;
   balance: number;
+  invoice_count: number;
+  last_activity: string | null;
 };
 
 export type Item = {
@@ -43,4 +46,6 @@ export type Salesperson = {
   name: string;
   is_active: number;
   created_at: string;
+  sales_count: number;
+  last_sale: string | null;
 };
