@@ -63,7 +63,7 @@ function PayChip({ type }: { type: Exclude<PayType, 'all'> }) {
     display: 'inline-grid', placeItems: 'center',
   };
   const map: Record<string, React.CSSProperties> = {
-    cash:    { background: '#f1f5e8', borderColor: '#cfd9b3', color: '#5a6a2d' },
+    cash:    { background: C.okBg, borderColor: 'var(--c-ok-border)', color: C.ok },
     credit:  { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`, color: C.warn },
     partial: { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`, color: C.warn },
   };
@@ -377,7 +377,7 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
 
       {/* Error banner */}
       {loadState === 'error' && (
-        <div style={{ padding: '8px 14px', background: '#fff3f3', border: '1px solid rgba(138,28,28,0.22)', borderRadius: 6, fontSize: 12.5, color: '#8a1c1c', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '8px 14px', background: C.badBg, border: '1px solid var(--c-bad-border)', borderRadius: 6, fontSize: 12.5, color: C.bad, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>
             Failed to load invoices.
             {errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 6, opacity: 0.8 }}>{errorMsg}</span>}
@@ -590,7 +590,7 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
           padding: '9px 14px', borderTop: `1px dashed ${C.line}`,
-          background: '#fdfdfb', fontSize: 11.5, color: C.muted,
+          background: 'var(--c-sidebar)', fontSize: 11.5, color: C.muted,
           borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
         }}>
           <span>Showing <b style={{ color: C.ink2, fontWeight: 600 }}>{filtered.length}</b> of <b style={{ color: C.ink2, fontWeight: 600 }}>{rows.length}</b></span>
@@ -686,7 +686,7 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
                       data-id={inv.id}
                       style={{ cursor: 'pointer', background: selected ? `color-mix(in oklab, ${C.accent} 5%, ${C.paper})` : undefined }}
                       onClick={() => setSelectedId(inv.id)}
-                      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLTableRowElement).style.background = '#fafaf8'; }}
+                      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--c-subtle)'; }}
                       onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLTableRowElement).style.background = ''; }}
                     >
                       {/* Invoice no */}
@@ -770,16 +770,16 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
               {paginated.length > 0 && (
                 <tfoot>
                   <tr>
-                    <td colSpan={3} style={{ padding: '11px 12px', background: '#fbfbf8', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                    <td colSpan={3} style={{ padding: '11px 12px', background: 'var(--c-sidebar)', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
                       Filtered total{' '}
                       <span style={{ color: C.muted2, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
                         ({activeRows.length} invoice{activeRows.length === 1 ? '' : 's'})
                       </span>
                     </td>
-                    <td style={{ padding: '11px 12px', background: '#fbfbf8', borderTop: `1px solid ${C.line}`, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: C.ink, fontSize: 14, fontWeight: 700, textAlign: 'right' }}>
+                    <td style={{ padding: '11px 12px', background: 'var(--c-sidebar)', borderTop: `1px solid ${C.line}`, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: C.ink, fontSize: 14, fontWeight: 700, textAlign: 'right' }}>
                       ₨ {fmt(filteredTotal)}
                     </td>
-                    <td colSpan={3} style={{ padding: '11px 12px', background: '#fbfbf8', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
+                    <td colSpan={3} style={{ padding: '11px 12px', background: 'var(--c-sidebar)', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
                       excludes returned invoices
                     </td>
                   </tr>
@@ -790,7 +790,7 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
         </div>
 
         {/* Pagination footer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderTop: `1px solid ${C.line}`, fontSize: 11.5, color: C.muted, background: '#fdfdfb', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 14px', borderTop: `1px solid ${C.line}`, fontSize: 11.5, color: C.muted, background: 'var(--c-sidebar)', flexShrink: 0 }}>
           <span>Rows per page</span>
           <select
             value={pageSize}

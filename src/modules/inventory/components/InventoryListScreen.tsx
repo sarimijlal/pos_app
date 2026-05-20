@@ -141,7 +141,7 @@ function ImeiTable({ imeis, loading, onViewImei }: {
             <tbody>
               {imeis.map(im => (
                 <tr key={im.imei}
-                  onMouseEnter={e => Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = '#f0f0ee'; })}
+                  onMouseEnter={e => Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = 'var(--c-subtle)'; })}
                   onMouseLeave={e => Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = ''; })}
                 >
                   <td style={{ padding: '7px 12px', borderBottom: `1px solid ${C.line2}`, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ink2, letterSpacing: '0.04em' }}>
@@ -236,7 +236,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
   const filteredAccessories = aq ? accessories.filter(a => a.name.toLowerCase().includes(aq)) : accessories;
 
   const thStyle = (right = false): React.CSSProperties => ({
-    padding: '8px 14px', background: '#fbfbf9',
+    padding: '8px 14px', background: 'var(--c-sidebar)',
     borderBottom: `1px solid ${C.line}`,
     textAlign: right ? 'right' : 'left',
     fontSize: 10.5, fontWeight: 600, color: C.muted,
@@ -312,7 +312,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
       {tab === 'mobile' && (
         <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 6, overflow: 'hidden' }}>
           {/* Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: '#fbfbf9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: 'var(--c-sidebar)' }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke={C.muted} strokeWidth="1.6" strokeLinecap="round"
                 style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -361,7 +361,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
                     <tr key={m.id}
                       onClick={() => toggleExpand(m.id)}
                       style={{ cursor: 'pointer' }}
-                      onMouseEnter={e => { if (!expanded) Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = '#f9f9f7'; }); }}
+                      onMouseEnter={e => { if (!expanded) Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = 'var(--c-subtle)'; }); }}
                       onMouseLeave={e => { Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = expanded ? C.subtle : ''; }); }}
                     >
                       <td style={{ padding: '11px 8px 11px 14px', borderBottom: expanded ? 'none' : `1px solid ${C.line}`, background: expanded ? C.subtle : '', verticalAlign: 'middle' }}>
@@ -405,7 +405,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
             </tbody>
           </table>
 
-          <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.line}`, background: '#fbfbf9', fontSize: 11.5, color: C.muted, display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.line}`, background: 'var(--c-sidebar)', fontSize: 11.5, color: C.muted, display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{mobiles.length} models · {mobileInStock + mobileSold + mobileReturned} total IMEIs</span>
             <span>Mobiles tracked individually by IMEI</span>
           </div>
@@ -416,7 +416,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
       {tab === 'accessory' && (
         <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 6, overflow: 'hidden' }}>
           {/* Toolbar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: '#fbfbf9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: `1px solid ${C.line}`, background: 'var(--c-sidebar)' }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke={C.muted} strokeWidth="1.6" strokeLinecap="round"
                 style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -473,7 +473,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
                   : { label: 'In stock',     color: C.ok,   bg: C.okBg,   border: 'rgba(15,122,74,0.22)' };
                 return (
                   <tr key={a.id}
-                    onMouseEnter={e => Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = '#f9f9f7'; })}
+                    onMouseEnter={e => Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = 'var(--c-subtle)'; })}
                     onMouseLeave={e => Array.from((e.currentTarget as HTMLTableRowElement).cells).forEach(c => { c.style.background = ''; })}
                   >
                     <td style={{ padding: '12px 14px', borderBottom: `1px solid ${C.line}`, verticalAlign: 'middle' }}>
@@ -506,7 +506,7 @@ export function InventoryListScreen({ onViewImei }: { onViewImei: (imei: string)
             </tbody>
           </table>
 
-          <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.line}`, background: '#fbfbf9', fontSize: 11.5, color: C.muted, display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.line}`, background: 'var(--c-sidebar)', fontSize: 11.5, color: C.muted, display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{accessories.length} SKUs · {Math.round(accQty)} pcs total</span>
             <span>{lowStockCount > 0 ? `${lowStockCount} low · ` : ''}{outOfStockCount > 0 ? `${outOfStockCount} out of stock` : 'all stocked'}</span>
           </div>

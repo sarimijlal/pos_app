@@ -763,7 +763,7 @@ export function PurchaseReturnForm({ initialInvoiceId, onSaved, onCancel }: Prop
 
                 {/* Error */}
                 {error && (
-                  <div style={{ padding: '10px 14px', background: '#f7e6e6', border: '1px solid rgba(138,28,28,0.22)', borderRadius: 4, fontSize: 12.5, color: C.bad }}>
+                  <div style={{ padding: '10px 14px', background: C.badBg, border: '1px solid var(--c-bad-border)', borderRadius: 4, fontSize: 12.5, color: C.bad }}>
                     {error}
                   </div>
                 )}
@@ -814,7 +814,7 @@ export function PurchaseReturnForm({ initialInvoiceId, onSaved, onCancel }: Prop
                       display: 'inline-flex', alignItems: 'center', gap: 8,
                       cursor: totalUnits === 0 || saving ? 'not-allowed' : 'pointer',
                       ...(totalUnits === 0 || saving
-                        ? { background: '#cdd3e1', border: '1px solid #cdd3e1', color: '#ffffff' }
+                        ? { background: C.line2, border: `1px solid ${C.line2}`, color: C.muted }
                         : { background: C.accent, border: `1px solid ${C.accent}`, color: C.accentFg }),
                     }}
                   >
