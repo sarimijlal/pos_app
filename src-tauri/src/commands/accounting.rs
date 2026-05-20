@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
+use sqlx::{Row, Sqlite, Transaction};
 use tauri_plugin_sql::{DbInstances, DbPool};
 
 // ─── Chart of Accounts / Dashboard types ─────────────────────────────────────
@@ -63,6 +63,7 @@ pub struct SupplierRow {
     is_active: i64,
     created_at: String,
     balance: f64,
+    invoice_count: i64,
 }
 
 #[derive(Deserialize)]
@@ -89,6 +90,8 @@ pub struct CustomerRow {
     is_active: i64,
     created_at: String,
     balance: f64,
+    invoice_count: i64,
+    last_activity: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -122,7 +125,9 @@ pub async fn get_suppliers(
 
     let rows = sqlx::query(
         "SELECT s.id, s.name, s.phone, s.address, s.payable_account_id, s.is_active, s.created_at, \
-                COALESCE(SUM(jel.credit) - SUM(jel.debit), 0.0) as balance \
+                COALESCE(SUM(jel.credit) - SUM(jel.debit), 0.0) as balance, \
+                (SELECT COUNT(*) FROM purchase_invoices pi \
+                 WHERE pi.supplier_id = s.id AND pi.status = 'active') as invoice_count \
          FROM suppliers s \
          LEFT JOIN journal_entry_lines jel ON jel.account_id = s.payable_account_id \
          WHERE s.is_active = 1 \
@@ -146,6 +151,7 @@ pub async fn get_suppliers(
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
                 balance: r.try_get("balance").map_err(|e| e.to_string())?,
+                invoice_count: r.try_get("invoice_count").map_err(|e| e.to_string())?,
             })
         })
         .collect()
@@ -243,7 +249,11 @@ pub async fn get_customers(
 
     let rows = sqlx::query(
         "SELECT c.id, c.name, c.phone, c.receivable_account_id, c.is_active, c.created_at, \
-                COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) as balance \
+                COALESCE(SUM(jel.debit) - SUM(jel.credit), 0.0) as balance, \
+                (SELECT COUNT(*) FROM sales_invoices si \
+                 WHERE si.customer_id = c.id AND si.status = 'active') as invoice_count, \
+                (SELECT MAX(si.date) FROM sales_invoices si \
+                 WHERE si.customer_id = c.id AND si.status = 'active') as last_activity \
          FROM customers c \
          LEFT JOIN journal_entry_lines jel ON jel.account_id = c.receivable_account_id \
          WHERE c.is_active = 1 \
@@ -266,6 +276,8 @@ pub async fn get_customers(
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
                 balance: r.try_get("balance").map_err(|e| e.to_string())?,
+                invoice_count: r.try_get("invoice_count").map_err(|e| e.to_string())?,
+                last_activity: r.try_get("last_activity").map_err(|e| e.to_string())?,
             })
         })
         .collect()
@@ -712,4 +724,257 @@ pub async fn get_dashboard_summary(
         low_stock,
         recent_entries,
     })
+}
+
+// ─── Party ledger ─────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct LedgerRow {
+    journal_entry_id: i64,
+    date: String,
+    reference_no: String,
+    narration: String,
+    source_type: String,
+    movement: f64,
+    balance: f64,
+}
+
+#[tauri::command]
+pub async fn get_party_ledger(
+    db_instances: tauri::State<'_, DbInstances>,
+    entity_id: i64,
+    entity_type: String,
+) -> Result<Vec<LedgerRow>, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let account_id: i64 = if entity_type == "supplier" {
+        let row = sqlx::query("SELECT payable_account_id FROM suppliers WHERE id = ?")
+            .bind(entity_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        row.try_get("payable_account_id").map_err(|e| e.to_string())?
+    } else {
+        let row = sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+            .bind(entity_id)
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        row.try_get("receivable_account_id").map_err(|e| e.to_string())?
+    };
+
+    // sign = 1 for supplier (credit increases payable), -1 for customer (debit increases receivable)
+    let sign: f64 = if entity_type == "supplier" { 1.0 } else { -1.0 };
+
+    let rows = sqlx::query(
+        "SELECT je.id AS journal_entry_id, je.date, je.reference_no, je.narration, je.source_type, \
+                jel.debit, jel.credit, \
+                SUM(jel.credit - jel.debit) OVER ( \
+                    ORDER BY je.date, je.id \
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW \
+                ) AS running_balance \
+         FROM journal_entries je \
+         JOIN journal_entry_lines jel ON jel.journal_entry_id = je.id \
+         WHERE jel.account_id = ? \
+         ORDER BY je.date, je.id",
+    )
+    .bind(account_id)
+    .fetch_all(&pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    rows.iter()
+        .map(|r| {
+            let debit: f64 = r.try_get("debit").map_err(|e| e.to_string())?;
+            let credit: f64 = r.try_get("credit").map_err(|e| e.to_string())?;
+            let running_balance: f64 = r.try_get("running_balance").map_err(|e| e.to_string())?;
+            Ok(LedgerRow {
+                journal_entry_id: r.try_get("journal_entry_id").map_err(|e| e.to_string())?,
+                date: r.try_get("date").map_err(|e| e.to_string())?,
+                reference_no: r.try_get("reference_no").map_err(|e| e.to_string())?,
+                narration: r.try_get("narration").map_err(|e| e.to_string())?,
+                source_type: r.try_get("source_type").map_err(|e| e.to_string())?,
+                movement: (credit - debit) * sign,
+                balance: running_balance * sign,
+            })
+        })
+        .collect()
+}
+
+// ─── Payment / Receipt vouchers ───────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct RecordPaymentInput {
+    entity_id: i64,
+    entity_type: String, // "supplier" | "customer"
+    amount: f64,
+    payment_mode: String, // "cash" | "bank"
+    date: String,
+    note: Option<String>,
+}
+
+#[tauri::command]
+pub async fn record_payment(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: RecordPaymentInput,
+) -> Result<i64, String> {
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+    match do_record_payment(&mut tx, input).await {
+        Ok(id) => {
+            tx.commit().await.map_err(|e| e.to_string())?;
+            Ok(id)
+        }
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    }
+}
+
+async fn do_record_payment(
+    tx: &mut Transaction<'_, Sqlite>,
+    input: RecordPaymentInput,
+) -> Result<i64, String> {
+    if input.amount <= 0.0 {
+        return Err("Amount must be greater than zero".to_string());
+    }
+
+    // Resolve party account ID and name
+    let (party_account_id, entity_name, source_type) = if input.entity_type == "supplier" {
+        let row = sqlx::query(
+            "SELECT payable_account_id, name FROM suppliers WHERE id = ?",
+        )
+        .bind(input.entity_id)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+        let account_id: i64 = row.try_get("payable_account_id").map_err(|e| e.to_string())?;
+        let name: String = row.try_get("name").map_err(|e| e.to_string())?;
+        (account_id, name, "payment_voucher")
+    } else {
+        let row = sqlx::query(
+            "SELECT receivable_account_id, name FROM customers WHERE id = ?",
+        )
+        .bind(input.entity_id)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+        let account_id: i64 = row.try_get("receivable_account_id").map_err(|e| e.to_string())?;
+        let name: String = row.try_get("name").map_err(|e| e.to_string())?;
+        (account_id, name, "receipt_voucher")
+    };
+
+    // Resolve cash or bank account
+    let cash_code = if input.payment_mode == "bank" { "1002" } else { "1001" };
+    let cash_row = sqlx::query("SELECT id FROM accounts WHERE code = ?")
+        .bind(cash_code)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    let cash_account_id: i64 = cash_row.try_get("id").map_err(|e| e.to_string())?;
+
+    // Auto-generate reference number
+    let count_row = sqlx::query(
+        "SELECT COUNT(*) as count FROM journal_entries WHERE source_type = ?",
+    )
+    .bind(source_type)
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let count: i64 = count_row.try_get("count").map_err(|e| e.to_string())?;
+    let prefix = if input.entity_type == "supplier" { "PV" } else { "RV" };
+    let reference_no = format!("{}-{:04}", prefix, count + 1);
+
+    let suffix = input
+        .note
+        .as_deref()
+        .filter(|n| !n.is_empty())
+        .map(|n| format!(" \u{2014} {}", n))
+        .unwrap_or_default();
+    let narration = if input.entity_type == "supplier" {
+        format!("Payment to {}{}", entity_name, suffix)
+    } else {
+        format!("Receipt from {}{}", entity_name, suffix)
+    };
+
+    let je_res = sqlx::query(
+        "INSERT INTO journal_entries (date, reference_no, narration, source_type, source_id, created_at) \
+         VALUES (?, ?, ?, ?, 0, datetime('now'))",
+    )
+    .bind(&input.date)
+    .bind(&reference_no)
+    .bind(&narration)
+    .bind(source_type)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let je_id = je_res.last_insert_rowid();
+
+    if input.entity_type == "supplier" {
+        // DR payable (reduces liability), CR cash/bank (reduces asset)
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, ?, 0.0)",
+        )
+        .bind(je_id)
+        .bind(party_account_id)
+        .bind(input.amount)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, 0.0, ?)",
+        )
+        .bind(je_id)
+        .bind(cash_account_id)
+        .bind(input.amount)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    } else {
+        // DR cash/bank (increases asset), CR receivable (reduces asset)
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, ?, 0.0)",
+        )
+        .bind(je_id)
+        .bind(cash_account_id)
+        .bind(input.amount)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, 0.0, ?)",
+        )
+        .bind(je_id)
+        .bind(party_account_id)
+        .bind(input.amount)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(je_id)
 }
