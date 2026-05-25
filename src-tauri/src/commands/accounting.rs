@@ -809,6 +809,107 @@ pub async fn get_party_ledger(
         .collect()
 }
 
+// ─── General Journal Entry ────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct GeneralEntryLine {
+    account_id: i64,
+    debit: f64,
+    credit: f64,
+}
+
+#[derive(Deserialize)]
+pub struct PostGeneralEntryInput {
+    date: String,
+    narration: String,
+    lines: Vec<GeneralEntryLine>,
+}
+
+#[tauri::command]
+pub async fn post_general_entry(
+    db_instances: tauri::State<'_, DbInstances>,
+    input: PostGeneralEntryInput,
+) -> Result<i64, String> {
+    if input.lines.len() < 2 {
+        return Err("A journal entry requires at least 2 lines".to_string());
+    }
+    let total_debit: f64 = input.lines.iter().map(|l| l.debit).sum();
+    let total_credit: f64 = input.lines.iter().map(|l| l.credit).sum();
+    if (total_debit - total_credit).abs() > 0.005 {
+        return Err(format!(
+            "Debits ({:.2}) must equal credits ({:.2})",
+            total_debit, total_credit
+        ));
+    }
+
+    let pool = {
+        let instances = db_instances.0.read().await;
+        match instances
+            .get("sqlite:pos.db")
+            .ok_or_else(|| "Database not loaded".to_string())?
+        {
+            DbPool::Sqlite(p) => p.clone(),
+        }
+    };
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+    match do_post_general_entry(&mut tx, input).await {
+        Ok(id) => {
+            tx.commit().await.map_err(|e| e.to_string())?;
+            Ok(id)
+        }
+        Err(e) => {
+            let _ = tx.rollback().await;
+            Err(e)
+        }
+    }
+}
+
+async fn do_post_general_entry(
+    tx: &mut Transaction<'_, Sqlite>,
+    input: PostGeneralEntryInput,
+) -> Result<i64, String> {
+    let count_row = sqlx::query(
+        "SELECT COUNT(*) as count FROM journal_entries WHERE source_type = 'general_entry'",
+    )
+    .fetch_one(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let count: i64 = count_row.try_get("count").map_err(|e| e.to_string())?;
+    let reference_no = format!("GJ-{:04}", count + 1);
+
+    let je_res = sqlx::query(
+        "INSERT INTO journal_entries (date, reference_no, narration, source_type, source_id, created_at) \
+         VALUES (?, ?, ?, 'general_entry', 0, datetime('now'))",
+    )
+    .bind(&input.date)
+    .bind(&reference_no)
+    .bind(&input.narration)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    let je_id = je_res.last_insert_rowid();
+
+    for line in &input.lines {
+        if line.debit == 0.0 && line.credit == 0.0 {
+            continue;
+        }
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, ?, ?)",
+        )
+        .bind(je_id)
+        .bind(line.account_id)
+        .bind(line.debit)
+        .bind(line.credit)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+
+    Ok(je_id)
+}
+
 // ─── Payment / Receipt vouchers ───────────────────────────────────────────────
 
 #[derive(Deserialize)]

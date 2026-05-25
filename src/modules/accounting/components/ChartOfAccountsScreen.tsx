@@ -740,7 +740,7 @@ export function ChartOfAccountsScreen() {
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <span style={{ fontSize: 11, color: C.muted, fontFamily: "'JetBrains Mono', monospace" }}>
-            <span style={{ border: `1px solid ${C.line2}`, borderRadius: 3, padding: '0 4px', background: C.paper, marginRight: 2 }}>⌘</span>
+            <span style={{ border: `1px solid ${C.line2}`, borderRadius: 3, padding: '0 4px', background: C.paper, marginRight: 2 }}>Ctrl</span>
             <span style={{ border: `1px solid ${C.line2}`, borderRadius: 3, padding: '0 4px', background: C.paper, marginRight: 3 }}>↵</span>
             save
           </span>
@@ -766,6 +766,226 @@ export function ChartOfAccountsScreen() {
             }}
           >
             {saving ? 'Saving…' : 'Save account'}
+          </button>
+        </div>
+      </aside>
+
+      {/* Journal Entry overlay */}
+      {jePanelOpen && (
+        <div
+          onClick={() => !jeSaving && setJePanelOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'var(--c-overlay)', zIndex: 40 }}
+        />
+      )}
+
+      {/* Post Journal Entry panel */}
+      <aside style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 400,
+        background: C.paper, borderLeft: `1px solid ${C.line2}`,
+        boxShadow: '-8px 0 24px rgba(0,0,0,0.1)',
+        display: 'flex', flexDirection: 'column', zIndex: 50,
+        transform: jePanelOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 220ms cubic-bezier(0.2,0.7,0.2,1)',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: `1px solid ${C.line}` }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>Post Journal Entry</div>
+            <div style={{ fontSize: 11.5, color: C.muted, marginTop: 1 }}>One debit, one credit — must balance.</div>
+          </div>
+          <button
+            onClick={() => !jeSaving && setJePanelOpen(false)}
+            style={{ width: 26, height: 26, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', display: 'grid', placeItems: 'center', color: C.muted }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M4 4l8 8M12 4l-8 8"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Helper callout */}
+          <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--c-accent-bg)', border: `1px solid var(--c-accent-border)`, fontSize: 12, color: C.accent, lineHeight: 1.5 }}>
+            <strong>Opening balance tip:</strong> To add opening cash, DR <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>1001 Cash</code> and CR <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>3001 Owner's Equity</code> for the amount you started with.
+          </div>
+
+          {/* Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 11.5, fontWeight: 500, color: C.ink2 }}>
+              Date <span style={{ color: C.bad, fontWeight: 600 }}>*</span>
+            </label>
+            <input
+              type="date"
+              value={jeDate}
+              onChange={e => setJeDate(e.target.value)}
+              style={{
+                height: 34, padding: '0 11px', background: C.paper,
+                border: `1px solid ${C.line2}`, borderRadius: 4,
+                fontSize: 13, color: C.ink, outline: 'none',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            />
+          </div>
+
+          {/* Narration */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 11.5, fontWeight: 500, color: C.ink2 }}>Narration</label>
+            <input
+              value={jeNarration}
+              onChange={e => setJeNarration(e.target.value)}
+              placeholder="e.g. Opening balance"
+              style={{
+                height: 34, padding: '0 11px', background: C.paper,
+                border: `1px solid ${C.line2}`, borderRadius: 4,
+                fontSize: 13, color: C.ink, outline: 'none',
+              }}
+            />
+          </div>
+
+          {/* Amount */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 11.5, fontWeight: 500, color: C.ink2 }}>
+              Amount <span style={{ color: C.bad, fontWeight: 600 }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: C.muted, pointerEvents: 'none' }}>₨</span>
+              <input
+                ref={jeAmountRef}
+                type="number"
+                min="0"
+                step="0.01"
+                value={jeAmount}
+                onChange={e => { setJeAmount(e.target.value); if (jeAmountErr) setJeAmountErr(''); }}
+                placeholder="0.00"
+                style={{
+                  width: '100%', height: 34, padding: '0 11px 0 26px', background: C.paper,
+                  border: `1px solid ${jeAmountErr ? C.bad : C.line2}`, borderRadius: 4,
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: C.ink, outline: 'none',
+                  boxSizing: 'border-box',
+                  boxShadow: jeAmountErr ? '0 0 0 3px var(--c-bad-bg)' : undefined,
+                }}
+              />
+            </div>
+            {jeAmountErr && <div style={{ fontSize: 11.5, color: C.bad }}>{jeAmountErr}</div>}
+          </div>
+
+          {/* Debit / Credit accounts */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+            {/* Debit row */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 500, color: C.ink2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ display: 'inline-block', width: 28, padding: '1px 6px', borderRadius: 3, background: 'var(--c-ok-bg)', color: 'var(--c-ok)', fontSize: 10, fontWeight: 700, textAlign: 'center' }}>DR</span>
+                Debit account
+              </label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={jeDebitId}
+                  onChange={e => setJeDebitId(e.target.value === '' ? '' : Number(e.target.value))}
+                  style={{
+                    width: '100%', height: 34, padding: '0 26px 0 11px', appearance: 'none',
+                    background: C.paper, border: `1px solid ${C.line2}`, borderRadius: 4,
+                    fontSize: 13, color: jeDebitId === '' ? C.muted2 : C.ink, outline: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <option value="">— select account —</option>
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                  ))}
+                </select>
+                <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: C.muted, pointerEvents: 'none' }}>▾</span>
+              </div>
+            </div>
+
+            {/* Visual connector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 4px' }}>
+              <div style={{ flex: 1, height: 1, background: C.line }} />
+              <span style={{ fontSize: 10.5, color: C.muted2, fontFamily: "'JetBrains Mono', monospace" }}>balanced</span>
+              <div style={{ flex: 1, height: 1, background: C.line }} />
+            </div>
+
+            {/* Credit row */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 500, color: C.ink2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ display: 'inline-block', width: 28, padding: '1px 6px', borderRadius: 3, background: 'var(--c-accent-bg)', color: 'var(--c-accent)', fontSize: 10, fontWeight: 700, textAlign: 'center' }}>CR</span>
+                Credit account
+              </label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={jeCreditId}
+                  onChange={e => setJeCreditId(e.target.value === '' ? '' : Number(e.target.value))}
+                  style={{
+                    width: '100%', height: 34, padding: '0 26px 0 11px', appearance: 'none',
+                    background: C.paper, border: `1px solid ${C.line2}`, borderRadius: 4,
+                    fontSize: 13, color: jeCreditId === '' ? C.muted2 : C.ink, outline: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <option value="">— select account —</option>
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
+                  ))}
+                </select>
+                <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: C.muted, pointerEvents: 'none' }}>▾</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Balance preview */}
+          {jeAmount && !isNaN(parseFloat(jeAmount)) && jeDebitId !== '' && jeCreditId !== '' && (
+            <div style={{
+              padding: '10px 12px', borderRadius: 6,
+              border: `1px solid ${C.line}`, background: 'var(--c-subtle)',
+              fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6,
+            }}>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Preview</div>
+              {[
+                { label: 'DR', account: accounts.find(a => a.id === jeDebitId), color: 'var(--c-ok)', bg: 'var(--c-ok-bg)' },
+                { label: 'CR', account: accounts.find(a => a.id === jeCreditId), color: 'var(--c-accent)', bg: 'var(--c-accent-bg)' },
+              ].map(({ label, account, color, bg }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 28, padding: '1px 0', borderRadius: 3, background: bg, color, fontSize: 10, fontWeight: 700, textAlign: 'center', flexShrink: 0 }}>{label}</span>
+                  <span style={{ flex: 1, color: C.ink2, fontSize: 12 }}>{account ? `${account.code} · ${account.name}` : '—'}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ink }}>
+                    ₨ {parseFloat(jeAmount).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {jeSaveErr && (
+            <div style={{ padding: '8px 12px', borderRadius: 4, background: 'var(--c-bad-bg)', color: C.bad, fontSize: 12 }}>
+              {jeSaveErr}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '12px 18px', borderTop: `1px solid ${C.line}`,
+          background: 'var(--c-sidebar)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{ flex: 1 }} />
+          <button
+            onClick={() => !jeSaving && setJePanelOpen(false)}
+            style={{ height: 30, padding: '0 12px', borderRadius: 4, border: `1px solid ${C.line2}`, background: C.paper, color: C.ink, fontSize: 12.5, cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handlePostEntry}
+            disabled={jeSaving}
+            style={{
+              height: 30, padding: '0 14px', borderRadius: 4, border: 'none',
+              background: C.accent, color: C.accentFg,
+              fontSize: 12.5, fontWeight: 500, cursor: jeSaving ? 'not-allowed' : 'pointer',
+              opacity: jeSaving ? 0.7 : 1,
+            }}
+          >
+            {jeSaving ? 'Posting…' : 'Post entry'}
           </button>
         </div>
       </aside>

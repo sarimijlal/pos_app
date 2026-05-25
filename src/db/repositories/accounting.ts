@@ -61,6 +61,14 @@ export async function getPartyLedger(
   return invoke('get_party_ledger', { entityId, entityType });
 }
 
+export async function postGeneralEntry(input: {
+  date: string;
+  narration: string;
+  lines: { account_id: number; debit: number; credit: number }[];
+}): Promise<number> {
+  return invoke('post_general_entry', { input });
+}
+
 export async function recordPayment(input: {
   entity_id: number;
   entity_type: 'supplier' | 'customer';

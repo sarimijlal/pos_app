@@ -148,6 +148,9 @@
   --c-accent-border: rgba(31,58,138,0.22);
   --c-warn-border: rgba(138,106,0,0.28);
   --c-bad-border: rgba(138,28,28,0.22);
+  --c-revenue: #0b6b66;
+  --c-revenue-bg: #e0f1ef;
+  --c-revenue-border: rgba(11,107,102,0.24);
 }
 
 /* ── Cellr semantic palette — dark ── */
@@ -179,6 +182,9 @@
   --c-accent-border: rgba(77,114,212,0.35);
   --c-warn-border: rgba(196,154,0,0.35);
   --c-bad-border: rgba(217,85,85,0.35);
+  --c-revenue: #14a89e;
+  --c-revenue-bg: #0b2624;
+  --c-revenue-border: rgba(20,168,158,0.35);
 }
 
 @layer base {
