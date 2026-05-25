@@ -396,7 +396,7 @@ export function ChartOfAccountsScreen() {
               <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, background: 'var(--c-subtle)', border: `1px solid ${C.line}`, borderRadius: 3, padding: '0 4px', color: C.ink2 }}>
                 code
               </code>
-              {' '}— codes must be unique and stable. Supplier and customer accounts are auto-created on insert.
+              {' '}. Codes must be unique and stable. Supplier and customer accounts are auto-created on insert.
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, color: C.muted, flexShrink: 0 }}>
