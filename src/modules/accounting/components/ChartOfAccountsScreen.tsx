@@ -67,24 +67,35 @@ function buildTree(accounts: AccountRow[], query: string): TreeRow[] {
   return result;
 }
 
-function BalanceCell({ balance, isGroup }: { balance: number; isGroup: boolean }) {
-  if (balance === 0) {
+const CREDIT_NORMAL = new Set(['liability', 'equity', 'revenue']);
+
+function BalanceCell({ balance, isGroup, type }: { balance: number; isGroup: boolean; type: string }) {
+  // Credit-normal accounts (liability, equity, revenue) live on the credit side.
+  // Their raw ledger balance is negative (credit > debit). Flip the sign so they
+  // display as positive, matching how every financial report presents them.
+  const displayBalance = CREDIT_NORMAL.has(type) ? -balance : balance;
+
+  if (displayBalance === 0) {
     return (
       <td style={{ padding: '11px 14px', borderBottom: `1px solid ${C.line}`, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: C.muted2 }}>
         —
       </td>
     );
   }
-  const isNeg = balance < 0;
+
+  // Positive display = balance is on the expected side = normal (dark ink).
+  // Negative display = balance crossed to the unexpected side = unusual (muted).
+  const isNormal = displayBalance > 0;
+
   return (
     <td style={{
       padding: '11px 14px', borderBottom: `1px solid ${C.line}`, textAlign: 'right',
       fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5,
-      color: isNeg ? C.muted : (isGroup ? C.ink : C.ink),
+      color: isNormal ? C.ink : C.muted,
       fontWeight: isGroup ? 600 : 400,
     }}>
       <span style={{ color: C.muted2, marginRight: 3 }}>₨</span>
-      {isNeg ? '−' : ''}{fmt(balance)}
+      {!isNormal ? '−' : ''}{fmt(displayBalance)}
     </td>
   );
 }
@@ -152,7 +163,7 @@ function AccountTableRow({
       </td>
 
       {/* Balance */}
-      <BalanceCell balance={a.balance} isGroup={isGroup} />
+      <BalanceCell balance={a.balance} isGroup={isGroup} type={a.type} />
 
       {/* Status */}
       <td style={cellBase}>
@@ -233,17 +244,13 @@ export function ChartOfAccountsScreen() {
   const subCount = accounts.filter(a => a.parent_id !== null).length;
   const activeCount = accounts.filter(a => a.is_active === 1).length;
 
-  // Footer totals — use leaf accounts only to avoid double-counting rolled-up parent rows
+  // Footer totals — use leaf accounts only to avoid double-counting rolled-up parent rows.
+  // Apply same sign-flip as BalanceCell so totals match what's displayed.
   const leafAccounts = accounts.filter(a => !accounts.some(c => c.parent_id === a.id));
-  const totalAssets = leafAccounts
-    .filter(a => a.type === 'asset' && a.balance > 0)
-    .reduce((s, a) => s + a.balance, 0);
-  const totalLiab = leafAccounts
-    .filter(a => a.type === 'liability' && a.balance < 0)
-    .reduce((s, a) => s + Math.abs(a.balance), 0);
-  const totalRevenue = leafAccounts
-    .filter(a => a.type === 'revenue' && a.balance < 0)
-    .reduce((s, a) => s + Math.abs(a.balance), 0);
+  const displayBal = (a: AccountRow) => CREDIT_NORMAL.has(a.type) ? -a.balance : a.balance;
+  const totalAssets  = leafAccounts.filter(a => a.type === 'asset').reduce((s, a) => s + Math.max(0, displayBal(a)), 0);
+  const totalLiab    = leafAccounts.filter(a => a.type === 'liability').reduce((s, a) => s + Math.max(0, displayBal(a)), 0);
+  const totalRevenue = leafAccounts.filter(a => a.type === 'revenue').reduce((s, a) => s + Math.max(0, displayBal(a)), 0);
 
   // Code uniqueness check
   const codeSet = new Set(accounts.map(a => a.code.toLowerCase()));
