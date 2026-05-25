@@ -389,7 +389,7 @@ export function AppShell({
               label="New invoice"
               active={section === 'sales-new'}
               collapsed={collapsed}
-              tooltip="New sale  ⌘N"
+              tooltip="New sale  Ctrl+N"
               onClick={nav('sales-new')}
             />
             <NavItem
@@ -418,7 +418,7 @@ export function AppShell({
               label="New invoice"
               active={section === 'purchase-new'}
               collapsed={collapsed}
-              tooltip="New purchase  ⌘⇧N"
+              tooltip="New purchase  Ctrl+Shift+N"
               onClick={nav('purchase-new')}
             />
             <NavItem
@@ -455,7 +455,7 @@ export function AppShell({
               label="IMEI lookup"
               active={section === 'inventory-imei'}
               collapsed={collapsed}
-              tooltip="IMEI lookup  ⌘I"
+              tooltip="IMEI lookup  Ctrl+I"
               onClick={nav('inventory-imei')}
             />
           </div>
@@ -542,7 +542,7 @@ export function AppShell({
               <span style={{
                 fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--c-muted)',
                 border: '1px solid var(--c-line)', borderRadius: 3, padding: '0 4px', background: 'var(--c-paper)',
-              }}>⌘\</span>
+              }}>Ctrl\</span>
             </>
           )}
         </div>
@@ -664,29 +664,29 @@ export function AppShell({
         }}>
           <QuickAction
             icon={<path d="M8 3v10M3 8h10"/>}
-            label="New sale" kbd="⌘N"
+            label="New sale" kbd="Ctrl+N"
             onClick={nav('sales-new')}
           />
           <QuickAction
             icon={<><path d="M3 3h10v10H3z"/><path d="M3 6h10"/></>}
-            label="New purchase" kbd="⌘⇧N"
+            label="New purchase" kbd="Ctrl+Shift+N"
             onClick={nav('purchase-new')}
           />
           <span style={{ width: 1, height: 14, background: 'var(--c-line)', margin: '0 4px', flexShrink: 0 }} />
           <QuickAction
             icon={<><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></>}
-            label="Find IMEI" kbd="⌘I"
+            label="Find IMEI" kbd="Ctrl+I"
             onClick={nav('inventory-imei')}
           />
           <QuickAction
             icon={<path d="M2 4h12M2 8h12M2 12h12"/>}
-            label="Recent invoices" kbd="⌘L"
+            label="Recent invoices" kbd="Ctrl+L"
             onClick={nav('sales-list')}
           />
           <span style={{ width: 1, height: 14, background: 'var(--c-line)', margin: '0 4px', flexShrink: 0 }} />
           <QuickAction
             icon={<><path d="M3 3h10v10H3z"/><path d="M6 8l2 2 4-4"/></>}
-            label="Today's totals" kbd="⌘T"
+            label="Today's totals" kbd="Ctrl+T"
             onClick={nav('dashboard')}
           />
           <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--c-muted)', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, padding: '5px 8px' }}>
@@ -737,8 +737,8 @@ export function AppShell({
             {/* Results */}
             <div style={{ padding: 6, maxHeight: 360, overflowY: 'auto' }}>
               <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--c-muted2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 10px 4px' }}>Actions</div>
-              <CmdResultItem icon={<path d="M8 3v10M3 8h10"/>} label="New sales invoice" kind="⌘N" onClick={() => { onNavigate('sales-new'); setCmdOpen(false); }} />
-              <CmdResultItem icon={<><path d="M3 3h10v10H3z"/><path d="M3 6h10"/></>} label="New purchase invoice" kind="⌘⇧N" onClick={() => { onNavigate('purchase-new'); setCmdOpen(false); }} />
+              <CmdResultItem icon={<path d="M8 3v10M3 8h10"/>} label="New sales invoice" kind="Ctrl+N" onClick={() => { onNavigate('sales-new'); setCmdOpen(false); }} />
+              <CmdResultItem icon={<><path d="M3 3h10v10H3z"/><path d="M3 6h10"/></>} label="New purchase invoice" kind="Ctrl+Shift+N" onClick={() => { onNavigate('purchase-new'); setCmdOpen(false); }} />
               <CmdResultItem icon={<><path d="M3 3h10v10H3z"/><path d="M6 8l2 2 4-4"/></>} label="Record sales return" kind="action" onClick={() => { onNavigate('sales-return'); setCmdOpen(false); }} />
 
               <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--c-muted2)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '8px 10px 4px' }}>Jump to</div>
@@ -792,7 +792,7 @@ function CmdSearchBar({ onClick }: { onClick: () => void }) {
         Search items, IMEIs, customers, invoices… or type a command
       </span>
       <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, flexShrink: 0 }}>
-        {['⌘', 'K'].map(k => (
+        {['Ctrl', 'K'].map(k => (
           <span key={k} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--c-ink2)', border: '1px solid var(--c-line2)', borderRadius: 3, padding: '1px 5px', background: 'var(--c-paper)' }}>{k}</span>
         ))}
       </div>
