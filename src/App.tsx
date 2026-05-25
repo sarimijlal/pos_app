@@ -14,6 +14,7 @@ import { SalesReturnForm } from './modules/sales/components/SalesReturnForm';
 import { InventoryListScreen } from './modules/inventory/components/InventoryListScreen';
 import { ImeiLookupScreen } from './modules/inventory/components/ImeiLookupScreen';
 import { PartiesScreen } from './modules/master/components/PartiesScreen';
+import { ItemsMasterScreen } from './modules/master/components/ItemsMasterScreen';
 import { LoadingScreen } from './components/LoadingScreen';
 
 function PlaceholderScreen({ title, section }: { title: string; section: string }) {
@@ -110,7 +111,7 @@ function App() {
       {section === 'inventory-imei'    && <ImeiLookupScreen initialImei={selectedImei} onNavigate={navigate} />}
       {section === 'accounts-ledger'   && <PlaceholderScreen title="Chart of Accounts"      section="Screen 13 — Chart of Accounts" />}
       {section === 'master-parties'    && <PartiesScreen />}
-      {section === 'master-items'      && <PlaceholderScreen title="Items Master"           section="Screen 12 — Items Master" />}
+      {section === 'master-items'      && <ItemsMasterScreen />}
     </AppShell>
   );
 }
