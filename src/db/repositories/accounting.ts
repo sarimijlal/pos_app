@@ -58,7 +58,7 @@ export async function getPartyLedger(
   entityId: number,
   entityType: 'supplier' | 'customer',
 ): Promise<LedgerRow[]> {
-  return invoke('get_party_ledger', { entity_id: entityId, entity_type: entityType });
+  return invoke('get_party_ledger', { entityId, entityType });
 }
 
 export async function recordPayment(input: {

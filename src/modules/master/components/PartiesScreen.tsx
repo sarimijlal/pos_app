@@ -69,6 +69,7 @@ export function PartiesScreen() {
   // Party ledger state
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [ledgerState, setLedgerState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [_ledgerErr, setLedgerErr] = useState('');
 
   // Salesperson inline form
   const [salName, setSalName] = useState('');
@@ -98,11 +99,13 @@ export function PartiesScreen() {
   async function loadLedger(kind: PanelKind, entityId: number) {
     setLedgerState('loading');
     setLedger([]);
+    setLedgerErr('');
     try {
       const rows = await getPartyLedger(entityId, kind);
       setLedger(rows);
       setLedgerState('success');
-    } catch {
+    } catch (e) {
+      setLedgerErr(e instanceof Error ? e.message : String(e));
       setLedgerState('error');
     }
   }
@@ -698,7 +701,7 @@ export function PartiesScreen() {
               </div>
             )}
 
-            <LedgerSection ledger={ledger} ledgerState={ledgerState} panelKind={panelKind} />
+            <LedgerSection ledger={ledger} ledgerState={ledgerState} ledgerErr={_ledgerErr} panelKind={panelKind} />
           </div>
         )}
 
@@ -789,7 +792,7 @@ export function PartiesScreen() {
           )}
 
           {panelMode === 'edit' && (
-            <LedgerSection ledger={ledger} ledgerState={ledgerState} panelKind={panelKind} />
+            <LedgerSection ledger={ledger} ledgerState={ledgerState} ledgerErr={_ledgerErr} panelKind={panelKind} />
           )}
         </div>
         )}
@@ -829,9 +832,10 @@ export function PartiesScreen() {
 
 // ── Ledger sub-component ──────────────────────────────────────────────────────
 
-function LedgerSection({ ledger, ledgerState, panelKind }: {
+function LedgerSection({ ledger, ledgerState, ledgerErr: _err, panelKind }: {
   ledger: LedgerRow[];
   ledgerState: 'idle' | 'loading' | 'error' | 'success';
+  ledgerErr: string;
   panelKind: PanelKind;
 }) {
   if (ledgerState === 'idle') return null;
@@ -860,7 +864,12 @@ function LedgerSection({ ledger, ledgerState, panelKind }: {
         <div style={{ fontSize: 12, color: C.muted, padding: '6px 0' }}>Loading…</div>
       )}
       {ledgerState === 'error' && (
-        <div style={{ fontSize: 12, color: C.bad, padding: '6px 0' }}>Failed to load history.</div>
+        <div style={{ fontSize: 12, color: C.bad, padding: '6px 0' }}>
+          Failed to load history.
+          {/* debug: uncomment to surface raw error message
+          {_err && <span style={{ marginLeft: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, opacity: 0.8 }}>{_err}</span>}
+          */}
+        </div>
       )}
       {ledgerState === 'success' && ledger.length === 0 && (
         <div style={{ fontSize: 12, color: C.muted2, padding: '6px 0' }}>No transactions recorded yet.</div>
