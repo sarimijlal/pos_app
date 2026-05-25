@@ -90,7 +90,7 @@ function Badge({ type, label }: { type: string; label: string }) {
 // ── KPI card ──────────────────────────────────────────────────────────────
 function KpiCard({
   label, icon, value, currency = '₨', sparkIdx, accent,
-  metaLeft, metaRight, subRight,
+  metaLeft, metaRight, subRight, subValue, subValueColor,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -101,6 +101,8 @@ function KpiCard({
   metaLeft?: React.ReactNode;
   metaRight?: React.ReactNode;
   subRight?: string;
+  subValue?: string;
+  subValueColor?: string;
 }) {
   const [hov, setHov] = useState(false);
   return (
@@ -138,6 +140,17 @@ function KpiCard({
         <span style={{ fontSize: 13, color: 'var(--c-muted2)', marginRight: 4, fontWeight: 400 }}>{currency}</span>
         {typeof value === 'number' ? fmt(value) : value}
       </div>
+
+      {subValue && (
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 12, fontWeight: 500,
+          color: subValueColor ?? 'var(--c-muted)',
+          letterSpacing: '0.01em', marginTop: -4,
+        }}>
+          {subValue}
+        </div>
+      )}
 
       <Sparkline idx={sparkIdx} accent={accent} />
 
@@ -278,6 +291,13 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section, id?: 
 
   const sales = data?.period_sales ?? 0;
   const purchases = data?.period_purchases ?? 0;
+  const grossProfit = data?.gross_profit ?? 0;
+  const marginPct = data?.margin_pct ?? 0;
+  const profitColor = grossProfit < 0
+    ? 'var(--c-bad)'
+    : marginPct < 10
+      ? 'var(--c-warn)'
+      : 'var(--c-ok)';
   const critCount = data?.low_stock.filter(i => i.quantity <= 2).length ?? 0;
   const lowCount = (data?.low_stock.length ?? 0) - critCount;
   const visibleEntries = data?.recent_entries.filter(e =>
@@ -318,7 +338,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section, id?: 
       )}
 
       {/* ── KPI row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
         <KpiCard
           label={period === 'today' ? "Today's sales" : period === 'week' ? "This week's sales" : "This month's sales"}
           sparkIdx={0} accent
@@ -358,6 +378,19 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (s: Section, id?: 
             </span>
           }
           metaRight={data && data.receivable_customers > 0 ? 'outstanding' : undefined}
+        />
+        <KpiCard
+          label={period === 'today' ? "Today's gross profit" : period === 'week' ? "This week's gross profit" : "This month's gross profit"}
+          sparkIdx={0}
+          icon={<><path d="M2 12l4-4 3 3 5-7"/></>}
+          value={grossProfit}
+          subValue={data ? `${marginPct.toFixed(1)}% margin` : undefined}
+          subValueColor={profitColor}
+          metaLeft={
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", color: 'var(--c-muted)' }}>
+              {data ? `COGS ₨ ${fmt(data.period_cogs)}` : '—'}
+            </span>
+          }
         />
       </div>
 

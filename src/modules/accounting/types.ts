@@ -34,6 +34,9 @@ export type RecentEntry = {
 export type DashboardSummary = {
   period_sales: number;
   period_purchases: number;
+  period_cogs: number;
+  gross_profit: number;
+  margin_pct: number;
   cash_in_hand: number;
   total_receivables: number;
   receivable_customers: number;

@@ -46,6 +46,9 @@ pub struct RecentEntry {
 pub struct DashboardSummary {
     period_sales: f64,
     period_purchases: f64,
+    period_cogs: f64,
+    gross_profit: f64,
+    margin_pct: f64,
     cash_in_hand: f64,
     total_receivables: f64,
     receivable_customers: i64,
@@ -572,21 +575,24 @@ pub async fn get_dashboard_summary(
     };
 
     // Build date conditions from a whitelisted period — no user input interpolated into SQL.
-    let (sales_date_cond, purchases_date_cond, entries_date_cond) = match period.as_str() {
+    let (sales_date_cond, purchases_date_cond, entries_date_cond, cogs_date_cond) = match period.as_str() {
         "week" => (
             "date >= date('now', '-6 days') AND date <= date('now')",
             "invoice_date >= date('now', '-6 days') AND invoice_date <= date('now')",
             "je.date >= date('now', '-6 days')",
+            "si.date >= date('now', '-6 days') AND si.date <= date('now')",
         ),
         "month" => (
             "date >= date('now', 'start of month') AND date <= date('now')",
             "invoice_date >= date('now', 'start of month') AND invoice_date <= date('now')",
             "je.date >= date('now', 'start of month')",
+            "si.date >= date('now', 'start of month') AND si.date <= date('now')",
         ),
         _ => (
             "date = date('now')",
             "invoice_date = date('now')",
             "je.date = date('now')",
+            "si.date = date('now')",
         ),
     };
 
@@ -613,6 +619,21 @@ pub async fn get_dashboard_summary(
         .await
         .map_err(|e| e.to_string())?;
     let period_purchases: f64 = purchases_row.try_get("total").map_err(|e| e.to_string())?;
+
+    let cogs_sql = format!(
+        "SELECT COALESCE(SUM(sil.cost_price * sil.quantity), 0.0) as total \
+         FROM sales_invoice_lines sil \
+         JOIN sales_invoices si ON si.id = sil.sales_invoice_id \
+         WHERE {} AND si.status = 'active'",
+        cogs_date_cond
+    );
+    let cogs_row = sqlx::query(&cogs_sql)
+        .fetch_one(&pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    let period_cogs: f64 = cogs_row.try_get("total").map_err(|e| e.to_string())?;
+    let gross_profit = period_sales - period_cogs;
+    let margin_pct = if period_cogs > 0.0 { gross_profit / period_cogs * 100.0 } else { 0.0 };
 
     let low_stock_rows = sqlx::query(
         "SELECT i.id as item_id, i.name, s.quantity \
@@ -718,6 +739,9 @@ pub async fn get_dashboard_summary(
     Ok(DashboardSummary {
         period_sales,
         period_purchases,
+        period_cogs,
+        gross_profit,
+        margin_pct,
         cash_in_hand,
         total_receivables,
         receivable_customers,
