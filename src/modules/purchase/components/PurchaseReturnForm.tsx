@@ -77,7 +77,7 @@ function OriginalInvoiceCard({ invoice }: { invoice: PurchaseInvoiceDetail }) {
   const totalUnits = invoice.lines.reduce((s, l) => s + l.quantity, 0);
   return (
     <div style={{
-      background: 'repeating-linear-gradient(135deg, rgba(0,0,0,0.012) 0 2px, transparent 2px 7px), #f4f3ef',
+      background: `repeating-linear-gradient(135deg, var(--c-hatch) 0 2px, transparent 2px 7px), var(--c-subtle)`,
       border: `1px dashed ${C.line2}`, borderRadius: 6, position: 'relative',
     }}>
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: C.muted2, borderRadius: '6px 0 0 6px', opacity: 0.55 }} />
@@ -155,7 +155,7 @@ function OriginalInvoiceCard({ invoice }: { invoice: PurchaseInvoiceDetail }) {
       </table>
 
       {/* Foot */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: `1px dashed ${C.line2}`, background: 'rgba(255,255,255,0.4)', borderRadius: '0 0 6px 6px', fontSize: 12, color: C.muted }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: `1px dashed ${C.line2}`, background: 'var(--c-sidebar)', borderRadius: '0 0 6px 6px', fontSize: 12, color: C.muted }}>
         <span>{invoice.lines.length} line items · {totalUnits} units</span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{ fontSize: 11.5, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Invoice total</span>
