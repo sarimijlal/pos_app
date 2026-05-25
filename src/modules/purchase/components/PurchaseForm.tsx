@@ -6,17 +6,7 @@ import { usePurchaseStore } from '../store';
 import type { Supplier, Item } from '../../../../interfaces';
 import type { PurchaseLineInput } from '../types';
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-  paper: '#ffffff', ink: '#0f0f10', ink2: '#2a2a2c',
-  muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2', subtle: '#f7f7f5',
-  bad: '#8a1c1c', badBg: '#f7e6e6',
-  ok: '#0f7a4a', okBg: '#e6f3ec',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  accent: '#1f3a8a', accentFg: '#ffffff',
-} as const;
+import { C } from '../../../lib/theme';
 
 function fmtNum(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -81,7 +71,7 @@ function LineRow({ rowNum, line, items, onPickItem, onPatch, onRemove }: LineRow
     !itemSearch || it.name.toLowerCase().includes(itemSearch.toLowerCase())
   );
 
-  const tdBg = rowHovered && !isEmpty ? '#fafaf8' : C.paper;
+  const tdBg = rowHovered && !isEmpty ? 'var(--c-subtle)' : C.paper;
   const td: React.CSSProperties = { padding: 0, borderBottom: `1px solid ${C.line}`, verticalAlign: 'middle', position: 'relative', background: tdBg };
   const cellIn: React.CSSProperties = { width: '100%', height: 44, border: 0, outline: 0, background: 'transparent', padding: '0 10px', fontFamily: 'inherit', fontSize: 13, color: C.ink };
   const firstTdExtra: React.CSSProperties = imeiComplete
@@ -110,7 +100,7 @@ function LineRow({ rowNum, line, items, onPickItem, onPatch, onRemove }: LineRow
                 setItemSearch('');
               }
             }}
-            style={{ height: 44, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, background: itemPopOpen ? '#f4f5f9' : 'transparent', boxShadow: itemPopOpen ? `inset 0 0 0 2px ${C.accent}` : 'none' }}
+            style={{ height: 44, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, background: itemPopOpen ? 'var(--c-accent-bg)' : 'transparent', boxShadow: itemPopOpen ? `inset 0 0 0 2px ${C.accent}` : 'none' }}
             onMouseEnter={e => { if (!itemPopOpen) e.currentTarget.style.background = C.subtle; }}
             onMouseLeave={e => { if (!itemPopOpen) e.currentTarget.style.background = 'transparent'; }}
           >
@@ -250,8 +240,8 @@ function ImeiSubRow({ line, onAddImei, onRemoveImei, onPatchImeiInput }: ImeiSub
 
   return (
     <tr>
-      <td style={{ background: '#fbfbf8', padding: 0, borderBottom: isComplete ? `1px solid ${C.line}` : 0 }} />
-      <td colSpan={7} style={{ background: '#fbfbf8', padding: '10px 14px 14px', borderTop: `1px dashed ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
+      <td style={{ background: 'var(--c-sidebar)', padding: 0, borderBottom: isComplete ? `1px solid ${C.line}` : 0 }} />
+      <td colSpan={7} style={{ background: 'var(--c-sidebar)', padding: '10px 14px 14px', borderTop: `1px dashed ${C.line}`, borderBottom: `1px solid ${C.line}` }}>
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 14 }}>
 
           {/* Meta */}
@@ -766,7 +756,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.line2; e.currentTarget.style.background = C.paper; }}
             >Cancel</button>
             <button type="button" onClick={handleSave} disabled={saving || !canSave}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: (saving || !canSave) ? '#b4b4b2' : C.accent, color: (saving || !canSave) ? '#f5f5f3' : C.accentFg, border: 'none', cursor: (saving || !canSave) ? 'not-allowed' : 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: (saving || !canSave) ? C.line2 : C.accent, color: (saving || !canSave) ? C.muted : C.accentFg, border: 'none', cursor: (saving || !canSave) ? 'not-allowed' : 'pointer' }}
             >
               {saving ? 'Saving…' : <><span>Save purchase</span><Kbd>Ctrl+S</Kbd></>}
             </button>

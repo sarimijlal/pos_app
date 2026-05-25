@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react';
 import { getPurchaseInvoiceById } from '../../../db/repositories/purchase';
 import type { PurchaseInvoiceDetail } from '../types';
 
-const C = {
-  ink: '#0f0f10', ink2: '#2a2a2c', ink3: '#6b6b70', muted: '#9a9aa0',
-  paper: '#ffffff', bg: '#fafaf9', line: '#e5e5e3', line2: '#d6d6d2',
-  accent: '#1f3a8a', ok: '#0f7a4a', warn: '#b08800', danger: '#8a1c1c',
-  accentBg: '#e6ebf7', okBg: '#e6f3ec', warnBg: '#fbf2d9',
-};
+import { C as _C } from '../../../lib/theme';
+const C = { ..._C, ink3: _C.muted, muted: _C.muted2, danger: _C.bad, accentBg: _C.infoBg };
 
 function fmt(n: number) {
   return n.toLocaleString('en-PK', { maximumFractionDigits: 0 });
@@ -49,15 +45,19 @@ function StatusChip({ status }: { status: string }) {
 
 export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: number | null; onBack: () => void }) {
   const [inv, setInv] = useState<PurchaseInvoiceDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (invoiceId == null) { setLoading(false); return; }
-    setLoading(true);
+    if (invoiceId == null) { setLoadState('success'); return; }
+    setLoadState('loading');
     getPurchaseInvoiceById(invoiceId)
-      .then(d => setInv(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .then(d => { setInv(d); setLoadState('success'); })
+      .catch(e => {
+        console.error('Failed to load purchase invoice:', e);
+        setErrorMsg(e instanceof Error ? e.message : String(e));
+        setLoadState('error');
+      });
   }, [invoiceId]);
 
   return (
@@ -92,19 +92,25 @@ export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: 
         </span>
       </div>
 
-      {loading && (
+      {loadState === 'loading' && (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.muted, fontSize: 13 }}>
           Loading…
         </div>
       )}
 
-      {!loading && !inv && (
+      {loadState === 'error' && (
+        <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.danger, fontSize: 13 }}>
+          Failed to load invoice.{errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 8, opacity: 0.8 }}>{errorMsg}</span>}
+        </div>
+      )}
+
+      {loadState === 'success' && !inv && (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.muted, fontSize: 13 }}>
           Invoice not found.
         </div>
       )}
 
-      {!loading && inv && (
+      {loadState === 'success' && inv && (
         <>
           {/* Meta grid */}
           <div style={{
@@ -149,7 +155,7 @@ export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: 
                 <tr>
                   {[['#', 32], ['Item', undefined], ['Qty', 70], ['Rate', 120], ['Total', 120]].map(([h, w]) => (
                     <th key={h as string} style={{
-                      padding: '9px 14px', background: '#fbfbf9',
+                      padding: '9px 14px', background: 'var(--c-sidebar)',
                       borderBottom: `1px solid ${C.line}`,
                       textAlign: (h === 'Rate' || h === 'Total') ? 'right' : 'left',
                       fontSize: 10.5, fontWeight: 600, color: C.ink3,
@@ -214,7 +220,7 @@ export function PurchaseInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: 
 
             {/* Footer total */}
             <div style={{
-              padding: '12px 14px', borderTop: `1px solid ${C.line}`, background: '#fbfbf9',
+              padding: '12px 14px', borderTop: `1px solid ${C.line}`, background: 'var(--c-sidebar)',
               display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10,
             }}>
               <span style={{ fontSize: 12, color: C.ink3 }}>Total</span>

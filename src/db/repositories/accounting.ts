@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { Supplier, Customer } from '../../../interfaces';
-import type { AccountRow, InsertAccountInput, DashboardSummary } from '../../modules/accounting/types';
+import type { AccountRow, InsertAccountInput, DashboardSummary, LedgerRow } from '../../modules/accounting/types';
 
 export async function getSuppliers(): Promise<Supplier[]> {
   return invoke<Supplier[]>('get_suppliers');
@@ -52,4 +52,30 @@ export async function insertAccount(input: InsertAccountInput): Promise<number> 
 
 export async function getDashboardSummary(period: string): Promise<DashboardSummary> {
   return invoke('get_dashboard_summary', { period });
+}
+
+export async function getPartyLedger(
+  entityId: number,
+  entityType: 'supplier' | 'customer',
+): Promise<LedgerRow[]> {
+  return invoke('get_party_ledger', { entityId, entityType });
+}
+
+export async function postGeneralEntry(input: {
+  date: string;
+  narration: string;
+  lines: { account_id: number; debit: number; credit: number }[];
+}): Promise<number> {
+  return invoke('post_general_entry', { input });
+}
+
+export async function recordPayment(input: {
+  entity_id: number;
+  entity_type: 'supplier' | 'customer';
+  amount: number;
+  payment_mode: 'cash' | 'bank';
+  date: string;
+  note?: string;
+}): Promise<number> {
+  return invoke('record_payment', { input });
 }

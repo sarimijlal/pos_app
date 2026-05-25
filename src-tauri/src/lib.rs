@@ -60,6 +60,9 @@ pub fn run() {
             commands::accounting::get_accounts,
             commands::accounting::insert_account,
             commands::accounting::get_dashboard_summary,
+            commands::accounting::record_payment,
+            commands::accounting::get_party_ledger,
+            commands::accounting::post_general_entry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -3,16 +3,7 @@ import { lookupImei } from '../../../db/repositories/inventory';
 import type { ImeiLookupResult } from '../types';
 import type { Section } from '../../../components/AppShell';
 
-const C = {
-  bg: '#fafaf9', paper: '#ffffff',
-  ink: '#0f0f10', ink2: '#2a2a2c', muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2',
-  ok: '#0f7a4a', okBg: '#e6f3ec',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  bad: '#8a1c1c', badBg: '#f7e6e6',
-  subtle: '#f7f7f5', accent: '#1f3a8a',
-};
+import { C } from '../../../lib/theme';
 
 function fmt(n: number) {
   return n.toLocaleString('en-PK', { maximumFractionDigits: 0 });
@@ -170,7 +161,7 @@ export function ImeiLookupScreen({
 }) {
   const [input, setInput] = useState(initialImei ?? '');
   const [cycles, setCycles] = useState<ImeiLookupResult[]>([]);
-  const [state, setState] = useState<'idle' | 'loading' | 'found' | 'not_found'>('idle');
+  const [state, setState] = useState<'idle' | 'loading' | 'found' | 'not_found' | 'error'>('idle');
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -183,8 +174,10 @@ export function ImeiLookupScreen({
       const r = await lookupImei(clean);
       if (r.length > 0) { setCycles(r); setState('found'); }
       else { setState('not_found'); }
-    } catch {
-      setState('not_found');
+    } catch (e) {
+      console.error('IMEI lookup failed:', e);
+      setCycles([]);
+      setState('error');
     }
   };
 
@@ -199,7 +192,7 @@ export function ImeiLookupScreen({
         inputRef.current?.focus();
         inputRef.current?.select();
       }
-      if (e.key === 'Escape' && state !== 'idle') {
+      if (e.key === 'Escape' && state !== 'idle' && state !== 'loading') {
         setInput(''); setCycles([]); setState('idle');
         inputRef.current?.focus();
       }
@@ -258,7 +251,7 @@ export function ImeiLookupScreen({
               autoFocus={!initialImei}
               style={{
                 width: '100%', height: 42, paddingLeft: 40, paddingRight: 40,
-                border: `1.5px solid ${state === 'not_found' ? C.bad : C.line2}`,
+                border: `1.5px solid ${(state === 'not_found' || state === 'error') ? C.bad : C.line2}`,
                 borderRadius: 6, background: C.paper, fontFamily: "'JetBrains Mono', monospace",
                 fontSize: 14, color: C.ink, outline: 'none', boxSizing: 'border-box',
                 letterSpacing: '0.06em',
@@ -326,6 +319,28 @@ export function ImeiLookupScreen({
             height: 32, padding: '0 14px', border: `1px solid ${C.line2}`, background: C.paper,
             color: C.ink2, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 500, borderRadius: 5, cursor: 'pointer',
           }}>← Back to search</button>
+        </div>
+      )}
+
+      {/* ── Error ── */}
+      {state === 'error' && (
+        <div style={{
+          background: C.paper, border: `1px solid rgba(138,28,28,0.22)`, borderRadius: 8,
+          padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center',
+        }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: C.badBg, border: `1px solid rgba(138,28,28,0.22)`, display: 'grid', placeItems: 'center' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.bad} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: C.bad, marginBottom: 4 }}>Lookup failed</div>
+            <div style={{ fontSize: 13, color: C.muted }}>An error occurred while searching. Check that the database is running and try again.</div>
+          </div>
+          <button onClick={() => doSearch(input)} style={{
+            height: 32, padding: '0 14px', border: `1px solid ${C.line2}`, background: C.paper,
+            color: C.ink2, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 500, borderRadius: 5, cursor: 'pointer',
+          }}>↻ Retry</button>
         </div>
       )}
 

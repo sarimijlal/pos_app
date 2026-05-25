@@ -34,9 +34,22 @@ export type RecentEntry = {
 export type DashboardSummary = {
   period_sales: number;
   period_purchases: number;
+  period_cogs: number;
+  gross_profit: number;
+  margin_pct: number;
   cash_in_hand: number;
   total_receivables: number;
   receivable_customers: number;
   low_stock: LowStockItem[];
   recent_entries: RecentEntry[];
+};
+
+export type LedgerRow = {
+  journal_entry_id: number;
+  date: string;
+  reference_no: string;
+  narration: string;
+  source_type: string;
+  movement: number;
+  balance: number;
 };

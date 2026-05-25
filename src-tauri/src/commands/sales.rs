@@ -18,6 +18,8 @@ pub struct SalespersonRow {
     name: String,
     is_active: i64,
     created_at: String,
+    sales_count: i64,
+    last_sale: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -128,8 +130,14 @@ pub async fn get_salespersons(
     };
 
     let rows = sqlx::query(
-        "SELECT id, name, is_active, created_at \
-         FROM salespersons WHERE is_active = 1 ORDER BY name",
+        "SELECT sp.id, sp.name, sp.is_active, sp.created_at, \
+                COUNT(si.id) as sales_count, \
+                MAX(si.date) as last_sale \
+         FROM salespersons sp \
+         LEFT JOIN sales_invoices si ON si.salesperson_id = sp.id AND si.status = 'active' \
+         WHERE sp.is_active = 1 \
+         GROUP BY sp.id \
+         ORDER BY sp.name",
     )
     .fetch_all(&pool)
     .await
@@ -142,6 +150,8 @@ pub async fn get_salespersons(
                 name: r.try_get("name").map_err(|e| e.to_string())?,
                 is_active: r.try_get("is_active").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
+                sales_count: r.try_get("sales_count").map_err(|e| e.to_string())?,
+                last_sale: r.try_get("last_sale").map_err(|e| e.to_string())?,
             })
         })
         .collect()

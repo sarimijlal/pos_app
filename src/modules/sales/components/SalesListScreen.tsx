@@ -5,15 +5,7 @@ import { getSalespersons } from '@/db/repositories/sales';
 import type { SalesInvoiceRow } from '../types';
 import type { Customer, Salesperson } from '../../../../interfaces';
 
-const C = {
-  ink: '#0f0f10', ink2: '#2a2a2c', muted: '#6b6b70', muted2: '#9a9aa0',
-  line: '#e5e5e3', line2: '#d6d6d2', paper: '#ffffff', bg: '#fafaf9',
-  subtle: '#f7f7f5',
-  ok: '#0f7a4a', okBg: '#e6f3ec',
-  warn: '#8a6a00', warnBg: '#fbf2d9',
-  info: '#1f3a8a', infoBg: '#e6ebf7',
-  accent: '#1f3a8a',
-};
+import { C } from '../../../lib/theme';
 
 type PayMode = 'all' | 'cash' | 'credit' | 'card' | 'bank';
 type SortCol = 'date' | 'no' | 'total';
@@ -80,10 +72,10 @@ function PayIcon({ mode }: { mode: Exclude<PayMode, 'all'> }) {
     border: '1px solid',
   };
   const map: Record<string, React.CSSProperties> = {
-    cash:   { background: '#f1f5e8', borderColor: '#cfd9b3', color: '#5a6a2d' },
+    cash:   { background: C.okBg, borderColor: 'var(--c-ok-border)', color: C.ok },
     credit: { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`, color: C.warn },
     card:   { background: C.infoBg, borderColor: `color-mix(in oklab, ${C.info} 22%, transparent)`, color: C.info },
-    bank:   { background: '#eef0ec', borderColor: '#c8ccc4', color: '#4a4d44' },
+    bank:   { background: C.subtle, borderColor: C.line2, color: C.ink2 },
   };
   const svgMap: Record<string, React.ReactNode> = {
     cash: <><rect x="2" y="4" width="12" height="8" rx="1"/><circle cx="8" cy="8" r="2"/></>,
@@ -139,7 +131,8 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
   const [rows, setRows] = useState<SalesInvoiceRow[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const [filters, setFilters] = useState<Filters>({
     customerId: null, payment: 'all', salespersonId: null,
@@ -167,7 +160,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
 
   useEffect(() => {
     async function load() {
-      setLoading(true);
+      setLoadState('loading');
       try {
         const [inv, cust, sp] = await Promise.all([
           getSalesInvoices(), getCustomers(), getSalespersons(),
@@ -175,8 +168,11 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
         setRows(inv);
         setCustomers(cust);
         setSalespersons(sp);
-      } finally {
-        setLoading(false);
+        setLoadState('success');
+      } catch (e) {
+        console.error('Sales list load failed:', e);
+        setErrorMsg(e instanceof Error ? e.message : String(e));
+        setLoadState('error');
       }
     }
     load();
@@ -352,7 +348,12 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={() => { setLoading(true); getSalesInvoices().then(r => setRows(r)).finally(() => setLoading(false)); }}
+            onClick={() => {
+              setLoadState('loading');
+              getSalesInvoices()
+                .then(r => { setRows(r); setLoadState('success'); })
+                .catch(e => { setErrorMsg(e instanceof Error ? e.message : String(e)); setLoadState('error'); });
+            }}
             style={{ width: 32, height: 32, border: `1px solid ${C.line2}`, background: C.paper, color: C.ink2, cursor: 'pointer', borderRadius: 4, display: 'grid', placeItems: 'center' }}
             title="Refresh"
           >
@@ -380,6 +381,28 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Error banner */}
+      {loadState === 'error' && (
+        <div style={{ padding: '8px 14px', background: C.badBg, border: '1px solid var(--c-bad-border)', borderRadius: 6, fontSize: 12.5, color: C.bad, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>
+            Failed to load invoices.
+            {errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 6, opacity: 0.8 }}>{errorMsg}</span>}
+          </span>
+          <span
+            role="button"
+            onClick={() => {
+              setLoadState('loading');
+              Promise.all([getSalesInvoices(), getCustomers(), getSalespersons()])
+                .then(([inv, cust, sp]) => { setRows(inv); setCustomers(cust); setSalespersons(sp); setLoadState('success'); })
+                .catch(e => { setErrorMsg(e instanceof Error ? e.message : String(e)); setLoadState('error'); });
+            }}
+            style={{ color: '#1f3a8a', cursor: 'pointer', textDecoration: 'underline', marginLeft: 'auto' }}
+          >
+            ↻ Retry
+          </span>
+        </div>
+      )}
 
       {/* Filter card */}
       <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 6 }}>
@@ -668,7 +691,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 14,
           padding: '9px 14px', borderTop: `1px dashed ${C.line}`,
-          background: '#fdfdfb', fontSize: 11.5, color: C.muted,
+          background: 'var(--c-sidebar)', fontSize: 11.5, color: C.muted,
           borderBottomLeftRadius: 6, borderBottomRightRadius: 6,
           flexWrap: 'wrap',
         }}>
@@ -723,7 +746,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
 
         {/* Table scroll */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {loading ? (
+          {loadState === 'loading' ? (
             <div style={{ padding: 40, textAlign: 'center', color: C.muted, fontSize: 13 }}>Loading…</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
@@ -787,7 +810,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
                       data-id={inv.id}
                       style={rowStyle}
                       onClick={() => setSelectedId(inv.id)}
-                      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLTableRowElement).style.background = '#fafaf8'; }}
+                      onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLTableRowElement).style.background = 'var(--c-subtle)'; }}
                       onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLTableRowElement).style.background = ''; }}
                     >
                       {/* Invoice no */}
@@ -878,16 +901,16 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
               {paginated.length > 0 && (
                 <tfoot>
                   <tr>
-                    <td colSpan={3} style={{ padding: '11px 12px', background: '#fbfbf8', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                    <td colSpan={3} style={{ padding: '11px 12px', background: 'var(--c-sidebar)', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
                       Filtered total{' '}
                       <span style={{ color: C.muted2, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
                         ({activeRows.length} invoice{activeRows.length === 1 ? '' : 's'})
                       </span>
                     </td>
-                    <td style={{ padding: '11px 12px', background: '#fbfbf8', borderTop: `1px solid ${C.line}`, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: C.ink, fontSize: 14, fontWeight: 700, textAlign: 'right' }}>
+                    <td style={{ padding: '11px 12px', background: 'var(--c-sidebar)', borderTop: `1px solid ${C.line}`, fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', color: C.ink, fontSize: 14, fontWeight: 700, textAlign: 'right' }}>
                       ₨ {fmt(filteredTotal)}
                     </td>
-                    <td colSpan={4} style={{ padding: '11px 12px', background: '#fbfbf8', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
+                    <td colSpan={4} style={{ padding: '11px 12px', background: 'var(--c-sidebar)', borderTop: `1px solid ${C.line}`, fontSize: 12, color: C.muted, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
                       excludes returned invoices
                     </td>
                   </tr>
@@ -901,7 +924,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 14,
           padding: '10px 14px', borderTop: `1px solid ${C.line}`,
-          fontSize: 11.5, color: C.muted, background: '#fdfdfb', flexShrink: 0,
+          fontSize: 11.5, color: C.muted, background: 'var(--c-sidebar)', flexShrink: 0,
         }}>
           <span>Rows per page</span>
           <select

@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react';
 import { getSalesInvoiceById } from '../../../db/repositories/sales';
 import type { SalesInvoiceDetail } from '../types';
 
-const C = {
-  ink: '#0f0f10', ink2: '#2a2a2c', ink3: '#6b6b70', muted: '#9a9aa0',
-  paper: '#ffffff', bg: '#fafaf9', line: '#e5e5e3', line2: '#d6d6d2',
-  accent: '#1f3a8a', ok: '#0f7a4a', warn: '#b08800', danger: '#8a1c1c',
-  accentBg: '#e6ebf7', okBg: '#e6f3ec', warnBg: '#fbf2d9',
-};
+import { C as _C } from '../../../lib/theme';
+const C = { ..._C, ink3: _C.muted, muted: _C.muted2, danger: _C.bad, accentBg: _C.infoBg };
 
 function fmt(n: number) {
   return n.toLocaleString('en-PK', { maximumFractionDigits: 0 });
@@ -16,8 +12,8 @@ function fmt(n: number) {
 const PAY_COLOR: Record<string, { color: string; bg: string; border: string }> = {
   cash:   { color: C.ok,     bg: C.okBg,    border: 'rgba(15,122,74,0.22)' },
   credit: { color: C.accent, bg: C.accentBg, border: 'rgba(31,58,138,0.22)' },
-  card:   { color: C.ink2,   bg: '#f1f1ef',  border: C.line2 },
-  bank:   { color: C.ink2,   bg: '#f1f1ef',  border: C.line2 },
+  card:   { color: C.ink2,   bg: 'var(--c-subtle)',  border: C.line2 },
+  bank:   { color: C.ink2,   bg: 'var(--c-subtle)',  border: C.line2 },
 };
 
 function PayBadge({ type }: { type: string }) {
@@ -50,15 +46,19 @@ function StatusChip({ status }: { status: string }) {
 
 export function SalesInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: number | null; onBack: () => void }) {
   const [inv, setInv] = useState<SalesInvoiceDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (invoiceId == null) { setLoading(false); return; }
-    setLoading(true);
+    if (invoiceId == null) { setLoadState('success'); return; }
+    setLoadState('loading');
     getSalesInvoiceById(invoiceId)
-      .then(d => setInv(d))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .then(d => { setInv(d); setLoadState('success'); })
+      .catch(e => {
+        console.error('Failed to load sales invoice:', e);
+        setErrorMsg(e instanceof Error ? e.message : String(e));
+        setLoadState('error');
+      });
   }, [invoiceId]);
 
   return (
@@ -93,19 +93,25 @@ export function SalesInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: num
         </span>
       </div>
 
-      {loading && (
+      {loadState === 'loading' && (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.muted, fontSize: 13 }}>
           Loading…
         </div>
       )}
 
-      {!loading && !inv && (
+      {loadState === 'error' && (
+        <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.danger, fontSize: 13 }}>
+          Failed to load invoice.{errorMsg && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginLeft: 8, opacity: 0.8 }}>{errorMsg}</span>}
+        </div>
+      )}
+
+      {loadState === 'success' && !inv && (
         <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 40, color: C.muted, fontSize: 13 }}>
           Invoice not found.
         </div>
       )}
 
-      {!loading && inv && (
+      {loadState === 'success' && inv && (
         <>
           {/* Meta grid */}
           <div style={{
@@ -139,7 +145,7 @@ export function SalesInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: num
                 <tr>
                   {[['#', 32], ['Item', undefined], ['Qty', 70], ['Price', 110], ['Disc', 80], ['Total', 110]].map(([h, w]) => (
                     <th key={h as string} style={{
-                      padding: '9px 14px', background: '#fbfbf9',
+                      padding: '9px 14px', background: 'var(--c-sidebar)',
                       borderBottom: `1px solid ${C.line}`,
                       textAlign: (h === 'Price' || h === 'Disc' || h === 'Total') ? 'right' : 'left',
                       fontSize: 10.5, fontWeight: 600, color: C.ink3,
@@ -207,7 +213,7 @@ export function SalesInvoiceDetailScreen({ invoiceId, onBack }: { invoiceId: num
 
             {/* Footer total */}
             <div style={{
-              padding: '12px 14px', borderTop: `1px solid ${C.line}`, background: '#fbfbf9',
+              padding: '12px 14px', borderTop: `1px solid ${C.line}`, background: 'var(--c-sidebar)',
               display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10,
             }}>
               <span style={{ fontSize: 12, color: C.ink3 }}>Total</span>
