@@ -19,8 +19,10 @@ export const C = {
   info:   'var(--c-accent)',
   infoBg: 'var(--c-accent-bg)',
   accent: 'var(--c-accent)',
-  bad:    'var(--c-bad)',
-  badBg:  'var(--c-bad-bg)',
+  bad:      'var(--c-bad)',
+  badBg:    'var(--c-bad-bg)',
+  revenue:  'var(--c-revenue)',
+  revenueBg:'var(--c-revenue-bg)',
   accentFg: '#ffffff',
 } as const;
 
