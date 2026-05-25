@@ -121,18 +121,18 @@
 
 /* ── Cellr semantic palette — light ── */
 :root {
-  --c-bg: #fafaf9;
+  --c-bg: #f5f4f1;
   --c-paper: #ffffff;
-  --c-sidebar: #fbfbf9;
-  --c-subtle: #f7f7f5;
+  --c-sidebar: #f3f3f0;
+  --c-subtle: #eeeeed;
   --c-ink: #0f0f10;
   --c-ink2: #2a2a2c;
-  --c-muted: #6b6b70;
-  --c-muted2: #9a9aa0;
-  --c-line: #e5e5e3;
-  --c-line2: #d6d6d2;
-  --c-nav-active: #ececea;
-  --c-nav-hover: #efefec;
+  --c-muted: #4f4f55;
+  --c-muted2: #72727a;
+  --c-line: #d4d4d0;
+  --c-line2: #c2c2bc;
+  --c-nav-active: #dce4f5;
+  --c-nav-hover: #e8e8e4;
   --c-accent: #1f3a8a;
   --c-accent-bg: #e6ebf7;
   --c-accent-ring: rgba(31,58,138,0.18);
