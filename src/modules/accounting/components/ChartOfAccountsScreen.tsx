@@ -228,14 +228,31 @@ export function ChartOfAccountsScreen() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // Roll up child balances into parent rows so group rows show aggregate totals
-  const accountsWithRollup: AccountRow[] = accounts.map(a => {
-    if (a.parent_id !== null) return a;
-    const childSum = accounts
-      .filter(c => c.parent_id === a.id)
-      .reduce((s, c) => s + c.balance, 0);
-    return { ...a, balance: a.balance + childSum };
-  });
+  // Roll up child balances into parent rows — handles 3-level hierarchy
+  // (e.g. Assets → Accounts Receivable → CUS-001). A simple one-pass approach
+  // only catches top-level parents; recursive memoisation handles any depth.
+  const accountsWithRollup: AccountRow[] = (() => {
+    const childrenOf = new Map<number, number[]>();
+    accounts.forEach(a => {
+      if (a.parent_id !== null) {
+        const kids = childrenOf.get(a.parent_id) ?? [];
+        kids.push(a.id);
+        childrenOf.set(a.parent_id, kids);
+      }
+    });
+    const ownBalance = new Map<number, number>(accounts.map(a => [a.id, a.balance]));
+    const memo = new Map<number, number>();
+    function rolled(id: number): number {
+      if (memo.has(id)) return memo.get(id)!;
+      const kids = childrenOf.get(id);
+      const val = kids && kids.length > 0
+        ? kids.reduce((s, kid) => s + rolled(kid), 0)
+        : (ownBalance.get(id) ?? 0);
+      memo.set(id, val);
+      return val;
+    }
+    return accounts.map(a => ({ ...a, balance: rolled(a.id) }));
+  })();
 
   const idMap = new Map(accountsWithRollup.map(a => [a.id, a]));
   const treeRows = buildTree(accountsWithRollup, search);
