@@ -587,7 +587,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
             <thead>
               <tr>
                 {(['', 'Item', 'Type', 'Qty', 'Rate', 'Discount', 'Line total', ''] as const).map((h, i) => (
-                  <th key={i} style={{ textAlign: i >= 3 && i <= 6 ? 'right' : 'left', fontSize: 10.5, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '9px 10px', borderBottom: `1px solid ${C.line}`, background: C.subtle, whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 }}>{h}</th>
+                  <th key={i} style={{ textAlign: i >= 3 && i <= 6 ? 'right' : 'left', fontSize: 10.5, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '9px 10px', borderBottom: `1.5px solid ${C.line3}`, background: C.subtle, whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 }}>{h}</th>
                 ))}
               </tr>
             </thead>

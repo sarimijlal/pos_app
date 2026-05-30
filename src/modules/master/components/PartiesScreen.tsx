@@ -27,7 +27,7 @@ function sourceLabel(st: string): string {
 
 const th: React.CSSProperties = {
   padding: '9px 14px', background: 'var(--c-sidebar)',
-  borderBottom: `1px solid ${C.line}`,
+  borderBottom: `1.5px solid ${C.line3}`,
   fontSize: 10.5, fontWeight: 600, color: C.muted,
   textTransform: 'uppercase', letterSpacing: '0.06em',
   whiteSpace: 'nowrap',
