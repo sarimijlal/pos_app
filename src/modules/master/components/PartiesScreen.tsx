@@ -27,7 +27,7 @@ function sourceLabel(st: string): string {
 
 const th: React.CSSProperties = {
   padding: '9px 14px', background: 'var(--c-sidebar)',
-  borderBottom: `1px solid ${C.line}`,
+  borderBottom: `1.5px solid ${C.line3}`,
   fontSize: 10.5, fontWeight: 600, color: C.muted,
   textTransform: 'uppercase', letterSpacing: '0.06em',
   whiteSpace: 'nowrap',
@@ -937,12 +937,11 @@ function SupplierRow({ supplier: s, tdBase, tabRowStyle, onEdit, onPay }: {
       <td style={{ ...tdBase, padding: '4px 10px' }}>
         {hovered && (
           <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-            {s.balance > 0 && (
-              <button
-                onClick={e => { e.stopPropagation(); onPay(); }}
-                style={{ height: 26, padding: '0 8px', border: `1px solid var(--c-warn-border)`, background: C.warnBg, color: C.warn, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 500, borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >Pay</button>
-            )}
+            <button
+              onClick={e => { e.stopPropagation(); onPay(); }}
+              title={`Pay ₨ ${fmt(s.balance)}`}
+              style={{ height: 26, padding: '0 8px', border: `1px solid var(--c-warn-border)`, background: C.warnBg, color: C.warn, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 500, borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >Pay</button>
             <button
               onClick={e => { e.stopPropagation(); onEdit(); }}
               style={{ height: 26, padding: '0 8px', border: `1px solid ${C.line2}`, background: C.paper, color: C.ink2, fontFamily: 'inherit', fontSize: 11.5, borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}
@@ -974,12 +973,11 @@ function CustomerRow({ customer: c, tdBase, tabRowStyle, onEdit, onReceive }: {
       <td style={{ ...tdBase, padding: '4px 10px' }}>
         {hovered && (
           <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-            {c.balance > 0 && (
-              <button
-                onClick={e => { e.stopPropagation(); onReceive(); }}
-                style={{ height: 26, padding: '0 8px', border: `1px solid var(--c-accent-border)`, background: C.infoBg, color: C.accent, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 500, borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >Receive</button>
-            )}
+            <button
+              onClick={e => { e.stopPropagation(); onReceive(); }}
+              title={`Receive ₨ ${fmt(c.balance)}`}
+              style={{ height: 26, padding: '0 8px', border: `1px solid var(--c-accent-border)`, background: C.infoBg, color: C.accent, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 500, borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >Receive</button>
             <button
               onClick={e => { e.stopPropagation(); onEdit(); }}
               style={{ height: 26, padding: '0 8px', border: `1px solid ${C.line2}`, background: C.paper, color: C.ink2, fontFamily: 'inherit', fontSize: 11.5, borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}

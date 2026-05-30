@@ -103,8 +103,9 @@ function NavItem({
         borderRadius: collapsed ? 8 : 4,
         justifyContent: collapsed ? 'center' : undefined,
         background: active ? 'var(--c-nav-active)' : hovered ? 'var(--c-nav-hover)' : undefined,
-        color: active ? 'var(--c-ink)' : 'var(--c-ink2)',
-        fontWeight: active ? 500 : undefined,
+        color: active ? 'var(--c-accent)' : 'var(--c-ink2)',
+        fontWeight: active ? 600 : undefined,
+        border: active ? '1px solid var(--c-nav-active-border)' : '1px solid transparent',
         cursor: 'pointer',
         userSelect: 'none',
         transition: 'background .1s',
@@ -117,7 +118,7 @@ function NavItem({
           position: 'absolute',
           left: collapsed ? -4 : -8,
           top: 6, bottom: 6,
-          width: 2, background: 'var(--c-accent)', borderRadius: 2,
+          width: 3, background: 'var(--c-accent)', borderRadius: 2,
         }} />
       )}
 
@@ -828,8 +829,9 @@ function MastersToggle({
         borderRadius: collapsed ? 8 : 4,
         justifyContent: collapsed ? 'center' : undefined,
         background: active ? 'var(--c-nav-active)' : hovered ? 'var(--c-nav-hover)' : undefined,
-        color: active ? 'var(--c-ink)' : 'var(--c-ink2)',
-        fontWeight: active ? 500 : undefined,
+        color: active ? 'var(--c-accent)' : 'var(--c-ink2)',
+        fontWeight: active ? 600 : undefined,
+        border: active ? '1px solid var(--c-nav-active-border)' : '1px solid transparent',
         cursor: 'pointer', userSelect: 'none',
         transition: 'background .1s',
         whiteSpace: 'nowrap',
@@ -840,7 +842,7 @@ function MastersToggle({
           position: 'absolute',
           left: collapsed ? -4 : -8,
           top: 6, bottom: 6,
-          width: 2, background: 'var(--c-accent)', borderRadius: 2,
+          width: 3, background: 'var(--c-accent)', borderRadius: 2,
         }} />
       )}
       <Ic style={{ opacity: 0.85 }}>

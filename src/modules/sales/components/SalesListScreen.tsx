@@ -314,7 +314,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
   const thStyle = (sortable = false, active = false): React.CSSProperties => ({
     textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: active ? C.ink2 : C.muted,
     textTransform: 'uppercase', letterSpacing: '0.06em',
-    padding: '9px 12px', borderBottom: `1px solid ${C.line}`,
+    padding: '9px 12px', borderBottom: `1.5px solid ${C.line3}`,
     background: C.subtle, whiteSpace: 'nowrap',
     position: 'sticky', top: 0, zIndex: 2,
     cursor: sortable ? 'pointer' : 'default', userSelect: 'none' as const,
