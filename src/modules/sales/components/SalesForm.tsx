@@ -365,6 +365,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
 
   const [remarks, setRemarks] = useState('');
   const [lines, setLines] = useState<LineState[]>([emptyLine()]);
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   useEffect(() => {
     getCustomers().then(setCustomers).catch(console.error);
@@ -456,13 +457,14 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
   }
 
   async function handleSave() {
-    if (!customerId) { alert('Select a customer.'); return; }
+    setFormSubmitted(true);
+    if (!customerId) return;
     const filled = lines.filter(l => l.item_id !== 0);
-    if (filled.length === 0) { alert('Add at least one line item.'); return; }
+    if (filled.length === 0) return;
     for (const l of filled) {
-      if (l.item_type === 'mobile' && l.imeis.length === 0) { alert('Select at least one IMEI for each mobile item.'); return; }
-      if (l.item_type === 'accessory' && l.quantity <= 0) { alert('Enter quantity > 0 for each accessory.'); return; }
-      if (l.sale_price <= 0) { alert('Enter a sale price > 0 for all items.'); return; }
+      if (l.item_type === 'mobile' && l.imeis.length === 0) return;
+      if (l.item_type === 'accessory' && l.quantity <= 0) return;
+      if (l.sale_price <= 0) return;
     }
     const saveLines: SalesLineInput[] = filled.map(
       ({ availableImeis: _a, loadingImeis: _l, imeiCellOpen: _b, imeiSearch: _s, stockQty: _q, ...rest }) => rest,
@@ -474,6 +476,12 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
 
   // Derived
   const filledLines = lines.filter(l => l.item_id !== 0);
+  const hasLineErrors = filledLines.some(
+    l => (l.item_type === 'mobile' && l.imeis.length === 0)
+      || (l.item_type === 'accessory' && l.quantity <= 0)
+      || l.sale_price <= 0
+  );
+  const canSave = customerId !== null && filledLines.length > 0 && !hasLineErrors;
   const subtotal = lines.reduce((s, l) => s + l.quantity * l.sale_price, 0);
   const totalDiscount = lines.reduce((s, l) => s + l.discount, 0);
   const totalAmount = lines.reduce((s, l) => s + l.total, 0);
@@ -526,7 +534,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
             <div ref={customerComboRef} style={{ position: 'relative' }}>
               <input
                 className="sf-input"
-                style={{ ...inputBase, paddingRight: 28, fontWeight: customerId ? 500 : 'normal' }}
+                style={{ ...inputBase, paddingRight: 28, fontWeight: customerId ? 500 : 'normal', border: formSubmitted && !customerId ? `1px solid ${C.bad}` : `1px solid ${C.line2}` }}
                 value={customerSearch}
                 placeholder="Search by name or phone…"
                 autoComplete="off"
@@ -747,12 +755,34 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
               onMouseEnter={e => { e.currentTarget.style.borderColor = C.ink2; e.currentTarget.style.background = C.subtle; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = C.line2; e.currentTarget.style.background = C.paper; }}
             >Cancel</button>
-            <button type="button" onClick={handleSave} disabled={saving}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: saving ? C.line2 : C.accent, color: C.accentFg, border: 'none', cursor: saving ? 'not-allowed' : 'pointer' }}
+            <button type="button" onClick={handleSave} disabled={saving || !canSave}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 34, padding: '0 14px', borderRadius: 4, fontFamily: 'inherit', fontSize: 13, fontWeight: 500, background: saving || !canSave ? C.line2 : C.accent, color: saving || !canSave ? C.muted : C.accentFg, border: 'none', cursor: saving || !canSave ? 'not-allowed' : 'pointer' }}
             >
               {saving ? 'Saving…' : <><span>Save invoice</span><Kbd>Ctrl+S</Kbd></>}
             </button>
           </div>
+          {formSubmitted && !canSave && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 2 }}>
+              {!customerId && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: C.bad }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.bad, flexShrink: 0, display: 'inline-block' }} />
+                  Select a customer before saving
+                </div>
+              )}
+              {filledLines.length === 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: C.bad }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.bad, flexShrink: 0, display: 'inline-block' }} />
+                  Add at least one line item
+                </div>
+              )}
+              {hasLineErrors && filledLines.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: C.bad }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.bad, flexShrink: 0, display: 'inline-block' }} />
+                  Some line items are incomplete — check IMEI, quantity and price
+                </div>
+              )}
+            </div>
+          )}
           {error && <p style={{ fontSize: 12, color: C.bad, margin: 0 }}>{error}</p>}
         </div>
       </div>
