@@ -1,5 +1,6 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { lookupImei } from '../../../db/repositories/inventory';
+import { useImeiScanner } from '../../../hooks/useImeiScanner';
 import type { ImeiLookupResult } from '../types';
 import type { Section } from '../../../components/AppShell';
 
@@ -180,6 +181,8 @@ export function ImeiLookupScreen({
       setState('error');
     }
   };
+
+  useImeiScanner((imei) => { setInput(imei); doSearch(imei); });
 
   useEffect(() => {
     if (initialImei) doSearch(initialImei);

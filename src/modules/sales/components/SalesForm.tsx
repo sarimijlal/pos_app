@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, Fragment } from 'react';
+import { useImeiScanner } from '../../../hooks/useImeiScanner';
 import { getCustomers, insertCustomer } from '@/db/repositories/accounting';
 import { getItems, getInventoryAccessories } from '@/db/repositories/inventory';
 import { getSalespersons, getAvailableImeis } from '@/db/repositories/sales';
@@ -48,9 +49,10 @@ interface LineRowProps {
   onAddImei: (imei: string) => void;
   onRemoveImei: (imei: string) => void;
   onRemove: () => void;
+  onActivate: () => void;
 }
 
-function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddImei, onRemoveImei, onRemove }: LineRowProps) {
+function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddImei, onRemoveImei, onRemove, onActivate }: LineRowProps) {
   const [rowHovered, setRowHovered] = useState(false);
   const [itemPopOpen, setItemPopOpen] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -90,7 +92,7 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddIme
   const cellIn: React.CSSProperties = { width: '100%', height: 44, border: 0, outline: 0, background: 'transparent', padding: '0 10px', fontFamily: 'inherit', fontSize: 13, color: C.ink };
 
   return (
-    <tr onMouseEnter={() => setRowHovered(true)} onMouseLeave={() => setRowHovered(false)}>
+    <tr onMouseEnter={() => { setRowHovered(true); onActivate(); }} onMouseLeave={() => setRowHovered(false)}>
 
       {/* # */}
       <td style={{ ...td, textAlign: 'center', color: C.muted2, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
@@ -331,6 +333,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
   const [remarks, setRemarks] = useState('');
   const [lines, setLines] = useState<LineState[]>([emptyLine()]);
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [activeLineIdx, setActiveLineIdx] = useState(0);
 
   useEffect(() => {
     getCustomers().then(setCustomers).catch(console.error);
@@ -476,6 +479,14 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
     if (id !== null) onSaved();
   }
   handleSaveRef.current = handleSave;
+
+  useImeiScanner((imei) => {
+    const line = lines[activeLineIdx];
+    if (!line || line.item_id === 0 || line.item_type !== 'mobile') return;
+    if (!line.availableImeis.includes(imei)) return;
+    addImei(activeLineIdx, imei);
+    patchLine(activeLineIdx, { imeiCellOpen: true });
+  });
 
   // Styles
   const inputBase: React.CSSProperties = { height: 32, padding: '0 10px', background: C.paper, border: `1px solid ${C.line2}`, borderRadius: 4, fontFamily: 'inherit', fontSize: 13.5, color: C.ink, width: '100%', boxSizing: 'border-box', outline: 'none' };
@@ -659,6 +670,7 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
                       onAddImei={imei => addImei(i, imei)}
                       onRemoveImei={imei => removeImei(i, imei)}
                       onRemove={() => setLines(prev => prev.filter((_, idx) => idx !== i))}
+                      onActivate={() => setActiveLineIdx(i)}
                     />
                   </Fragment>
                 ))}
