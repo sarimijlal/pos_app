@@ -119,72 +119,147 @@
     --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* ── Cellr semantic palette — light ── */
+/* ── Cellr semantic palette — light (v2) ── */
 :root {
-  --c-bg: #fafaf9;
-  --c-paper: #ffffff;
-  --c-sidebar: #fbfbf9;
-  --c-subtle: #f7f7f5;
-  --c-ink: #0f0f10;
-  --c-ink2: #2a2a2c;
-  --c-muted: #6b6b70;
-  --c-muted2: #9a9aa0;
-  --c-line: #e5e5e3;
-  --c-line2: #d6d6d2;
-  --c-nav-active: #ececea;
-  --c-nav-hover: #efefec;
-  --c-accent: #1f3a8a;
-  --c-accent-bg: #e6ebf7;
-  --c-accent-ring: rgba(31,58,138,0.18);
-  --c-hatch: rgba(15,15,16,0.025);
-  --c-overlay: rgba(15,15,16,0.32);
-  --c-ok: #0f7a4a;
-  --c-ok-bg: #e6f3ec;
-  --c-warn: #8a6a00;
-  --c-warn-bg: #fbf2d9;
-  --c-bad: #8a1c1c;
-  --c-bad-bg: #f7e6e6;
-  --c-ok-border: rgba(15,122,74,0.22);
-  --c-accent-border: rgba(31,58,138,0.22);
-  --c-warn-border: rgba(138,106,0,0.28);
-  --c-bad-border: rgba(138,28,28,0.22);
-  --c-revenue: #0b6b66;
-  --c-revenue-bg: #e0f1ef;
+  /* surfaces */
+  --c-bg:      #e8e5dc;  /* warm canvas — cards visibly lift off */
+  --c-paper:   #ffffff;  /* card / input surface */
+  --c-sidebar: #fbfaf6;  /* sidebar, inset panels (v2 paper-2) */
+  --c-subtle:  #efece3;  /* table head, hover row */
+  --c-subtle2: #e2dfd5;  /* deeper hover / pressed */
+
+  /* ink */
+  --c-ink:    #0a0a0c;
+  --c-ink2:   #28282a;
+  --c-muted:  #5a5a60;
+  --c-muted2: #8a8a90;
+
+  /* borders — three tiers */
+  --c-line:  #c9c5b9;  /* card edges, dividers */
+  --c-line2: #a8a499;  /* input + button borders */
+  --c-line3: #6b6760;  /* heavy rule — table-head separator */
+
+  /* navigation */
+  --c-nav-active:        color-mix(in oklab, var(--c-accent) 10%, var(--c-paper));
+  --c-nav-active-border: color-mix(in oklab, var(--c-accent) 25%, transparent);
+  --c-nav-hover:         #ece9e3;
+
+  /* accent */
+  --c-accent:        #1f3a8a;
+  --c-accent-bg:     #e6ebf7;
+  --c-accent-ring:   color-mix(in oklab, var(--c-accent) 22%, transparent);
+  --c-ring:          0 0 0 3px color-mix(in oklab, var(--c-accent) 22%, transparent);
+  --c-accent-border: color-mix(in oklab, var(--c-accent) 25%, transparent);
+
+  /* info — dedicated token, distinct from accent */
+  --c-info:        #163074;
+  --c-info-bg:     #d4dcf0;
+  --c-info-border: #7c8cc4;
+
+  /* status — ok */
+  --c-ok:        #0a6a3e;
+  --c-ok-bg:     #d4ecdc;
+  --c-ok-border: #6fb18c;  /* opaque (was rgba) */
+
+  /* status — warn */
+  --c-warn:        #6f5400;
+  --c-warn-bg:     #f4e4b0;
+  --c-warn-border: #c9a93d;  /* opaque */
+
+  /* status — bad */
+  --c-bad:        #7a1414;
+  --c-bad-bg:     #f0d4d4;
+  --c-bad-border: #c47878;  /* opaque */
+
+  /* revenue (app-specific, no v2 equivalent) */
+  --c-revenue:        #0b6b66;
+  --c-revenue-bg:     #e0f1ef;
   --c-revenue-border: rgba(11,107,102,0.24);
+
+  /* elevation shadows */
+  --c-shadow-1: 0 1px 0 rgba(15,15,16,0.04), 0 1px 2px rgba(15,15,16,0.06);
+  --c-shadow-2: 0 1px 0 rgba(15,15,16,0.04), 0 2px 6px rgba(15,15,16,0.08), 0 8px 24px -8px rgba(15,15,16,0.10);
+  --c-shadow-3: 0 2px 0 rgba(15,15,16,0.04), 0 6px 16px rgba(15,15,16,0.10), 0 24px 40px -16px rgba(15,15,16,0.16);
+
+  /* effects */
+  --c-hatch:   rgba(15,15,16,0.025);
+  --c-overlay: rgba(15,15,16,0.32);
 }
 
-/* ── Cellr semantic palette — dark ── */
+/* ── Cellr semantic palette — dark (v2) ── */
 .dark {
-  --c-bg: #111113;
-  --c-paper: #1c1c1e;
-  --c-sidebar: #171719;
-  --c-subtle: #232325;
-  --c-ink: #f0f0ef;
-  --c-ink2: #c8c8c4;
-  --c-muted: #8a8a90;
-  --c-muted2: #5c5c62;
-  --c-line: #2d2d2f;
-  --c-line2: #3a3a3c;
-  --c-nav-active: #2a2a2c;
-  --c-nav-hover: #252527;
-  --c-accent: #4d72d4;
-  --c-accent-bg: #1a2340;
-  --c-accent-ring: rgba(77,114,212,0.25);
-  --c-hatch: rgba(255,255,255,0.025);
-  --c-overlay: rgba(0,0,0,0.55);
-  --c-ok: #2ea86e;
-  --c-ok-bg: #0e2b1e;
-  --c-warn: #c49a00;
-  --c-warn-bg: #2b2400;
-  --c-bad: #d95555;
-  --c-bad-bg: #2e1010;
-  --c-ok-border: rgba(46,168,110,0.35);
-  --c-accent-border: rgba(77,114,212,0.35);
-  --c-warn-border: rgba(196,154,0,0.35);
-  --c-bad-border: rgba(217,85,85,0.35);
-  --c-revenue: #14a89e;
-  --c-revenue-bg: #0b2624;
+  /* surfaces — bigger lightness deltas so cards clearly stack */
+  --c-bg:      #0c0b10;  /* near-black canvas */
+  --c-paper:   #26242c;  /* card surface — clearly lighter than canvas */
+  --c-sidebar: #1a181e;  /* sidebar (between bg and paper) */
+  --c-subtle:  #34323c;  /* table head, hover row */
+  --c-subtle2: #423f4a;  /* deeper hover, pressed */
+
+  /* ink */
+  --c-ink:    #f5f2eb;
+  --c-ink2:   #dad7cf;
+  --c-muted:  #a8a39a;
+  --c-muted2: #7a766e;
+
+  /* borders — visible against dark paper */
+  --c-line:  #4a4752;
+  --c-line2: #67636f;
+  --c-line3: #8a8693;
+
+  /* navigation */
+  --c-nav-active:        color-mix(in oklab, var(--c-accent) 20%, var(--c-paper));
+  --c-nav-active-border: color-mix(in oklab, var(--c-accent) 35%, transparent);
+  --c-nav-hover:         #302f38;
+
+  /* accent */
+  --c-accent:        #4d72d4;
+  --c-accent-bg:     #1a2340;
+  --c-accent-ring:   color-mix(in oklab, var(--c-accent) 45%, transparent);
+  --c-ring:          0 0 0 3px color-mix(in oklab, var(--c-accent) 45%, transparent);
+  --c-accent-border: color-mix(in oklab, var(--c-accent) 35%, transparent);
+
+  /* info */
+  --c-info:        #a3b5f5;
+  --c-info-bg:     #18204a;
+  --c-info-border: #4a5a96;
+
+  /* status */
+  --c-ok:        #5fe28f;
+  --c-ok-bg:     #0e2e1c;
+  --c-ok-border: #3a8255;
+
+  --c-warn:        #ffd070;
+  --c-warn-bg:     #3a2a08;
+  --c-warn-border: #857024;
+
+  --c-bad:        #f59595;
+  --c-bad-bg:     #3a1616;
+  --c-bad-border: #855050;
+
+  /* revenue */
+  --c-revenue:        #14a89e;
+  --c-revenue-bg:     #0b2624;
   --c-revenue-border: rgba(20,168,158,0.35);
+
+  /* elevation shadows — deeper drop + rim-light highlight */
+  --c-shadow-1:
+    0 1px 0 rgba(0,0,0,0.5),
+    0 1px 2px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  --c-shadow-2:
+    0 1px 0 rgba(0,0,0,0.5),
+    0 6px 14px rgba(0,0,0,0.55),
+    0 16px 30px -10px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.07);
+  --c-shadow-3:
+    0 2px 0 rgba(0,0,0,0.5),
+    0 14px 36px rgba(0,0,0,0.65),
+    0 30px 60px -16px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+
+  /* effects */
+  --c-hatch:   rgba(255,255,255,0.04);
+  --c-overlay: rgba(0,0,0,0.55);
 }
 
 @layer base {
@@ -250,18 +325,18 @@
 /* ── Sales Form — header inputs ── */
 .sf-input:focus {
   border-color: var(--c-accent) !important;
-  box-shadow: 0 0 0 3px var(--c-accent-ring) !important;
+  box-shadow: var(--c-ring) !important;
   outline: none;
 }
 .sf-textarea:focus {
   border-color: var(--c-accent) !important;
-  box-shadow: 0 0 0 3px var(--c-accent-ring) !important;
+  box-shadow: var(--c-ring) !important;
   outline: none;
 }
 /* ── Sales Form — table cell inputs ── */
 .sf-cell:focus {
-  background: var(--c-subtle) !important;
-  box-shadow: inset 0 0 0 2px var(--c-accent) !important;
+  background: var(--c-paper) !important;
+  box-shadow: inset 0 0 0 1px var(--c-accent) !important;
   outline: none;
 }
 .sf-cell-ro:focus {

@@ -322,6 +322,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierPopOpen, setSupplierPopOpen] = useState(false);
   const supplierComboRef = useRef<HTMLDivElement>(null);
+  const [formSubmitted, setFormSubmitted] = useState(false);
 
   const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [paymentType, setPaymentType] = useState<'cash' | 'credit' | 'partial'>('cash');
@@ -424,10 +425,11 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
   const imeisReceived = filledLines.filter(l => l.item_type === 'mobile').reduce((s, l) => s + l.imeis.length, 0);
 
   async function handleSave() {
-    if (!supplierId) { alert('Select a supplier.'); return; }
-    if (filledLines.length === 0) { alert('Add at least one line item.'); return; }
-    if (!allImeisComplete) { alert('All mobile lines must have IMEIs matching the quantity.'); return; }
-    if (!partialBalanced) { alert('Cash + credit amounts must equal the invoice total.'); return; }
+    setFormSubmitted(true);
+    if (!supplierId) return;
+    if (filledLines.length === 0) return;
+    if (!allImeisComplete) return;
+    if (!partialBalanced) return;
 
     const saveLines: PurchaseLineInput[] = filledLines.map(
       ({ imeiInput: _i, ...rest }) => rest,
@@ -494,7 +496,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
             <div ref={supplierComboRef} style={{ position: 'relative' }}>
               <input
                 className="sf-input"
-                style={{ ...inputBase, paddingRight: 28, fontWeight: supplierId ? 500 : 'normal' }}
+                style={{ ...inputBase, paddingRight: 28, fontWeight: supplierId ? 500 : 'normal', border: formSubmitted && !supplierId ? `1px solid ${C.bad}` : `1px solid ${C.line2}` }}
                 value={supplierSearch}
                 placeholder="Search by name or phone…"
                 autoComplete="off"
@@ -587,7 +589,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
             <thead>
               <tr>
                 {(['', 'Item', 'Type', 'Qty', 'Rate', 'Discount', 'Line total', ''] as const).map((h, i) => (
-                  <th key={i} style={{ textAlign: i >= 3 && i <= 6 ? 'right' : 'left', fontSize: 10.5, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '9px 10px', borderBottom: `1px solid ${C.line}`, background: C.subtle, whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 }}>{h}</th>
+                  <th key={i} style={{ textAlign: i >= 3 && i <= 6 ? 'right' : 'left', fontSize: 10.5, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.06em', padding: '9px 10px', borderBottom: `1.5px solid ${C.line3}`, background: C.subtle, whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 2 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -763,6 +765,12 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
           </div>
 
           {/* Save reason */}
+          {formSubmitted && !supplierId && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: C.bad }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.bad, flexShrink: 0, display: 'inline-block' }} />
+              Select a supplier before saving
+            </div>
+          )}
           {!canSave && filledLines.length > 0 && (
             <div style={{ fontSize: 11.5, color: C.bad, fontFamily: "'JetBrains Mono', monospace", textAlign: 'right', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v4M8 11v.5"/></svg>
