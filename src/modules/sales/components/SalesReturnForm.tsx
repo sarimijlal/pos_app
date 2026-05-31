@@ -723,7 +723,7 @@ export function SalesReturnForm({ initialInvoiceId, onSaved, onCancel }: Props) 
                     </div>
                     {[
                       { side: 'DR', label: 'Sales Revenue', amt: totalAmount },
-                      { side: 'CR', label: invoice.payment_mode === 'credit' ? `A/R · ${invoice.customer_name}` : invoice.payment_mode === 'cash' ? 'Cash in hand' : invoice.payment_mode === 'card' ? 'Card settlements' : 'Bank account', amt: totalAmount },
+                      { side: 'CR', label: invoice.payment_mode === 'credit' ? `A/R · ${invoice.customer_name}` : invoice.payment_mode === 'cash' ? 'Cash in hand' : 'Bank account', amt: totalAmount },
                     ].map(({ side, label, amt }, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                         <span style={{ color: side === 'DR' ? C.ok : C.bad, fontWeight: 600, width: 30 }}>{side}</span>

@@ -110,7 +110,7 @@ function AccountTableRow({
   idMap: Map<number, AccountRow>;
 }) {
   const [hovered, setHovered] = useState(false);
-  const { account: a, isGroup, isLastChild } = row;
+  const { account: a, isGroup } = row;
   const isInactive = a.is_active === 0;
 
   const parentName = a.parent_id != null

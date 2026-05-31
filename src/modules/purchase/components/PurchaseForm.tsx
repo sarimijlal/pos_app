@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
-import { useImeiScanner } from '../../../hooks/useImeiScanner';
 import { getSuppliers, insertSupplier } from '@/db/repositories/accounting';
 import { getItems } from '@/db/repositories/inventory';
 import { useSavePurchaseInvoice } from '../hooks/useSavePurchaseInvoice';
@@ -42,10 +41,9 @@ interface LineRowProps {
   onPickItem: (item: Item) => void;
   onPatch: (patch: Partial<LineState>) => void;
   onRemove: () => void;
-  onActivate: () => void;
 }
 
-function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onRemove, onActivate }: LineRowProps) {
+function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onRemove }: LineRowProps) {
   const [rowHovered, setRowHovered] = useState(false);
   const [itemPopOpen, setItemPopOpen] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -73,7 +71,7 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onRemove
   const firstTdExtra: React.CSSProperties = imeiComplete ? { boxShadow: `inset 2px 0 0 ${C.ok}` } : imeiIncomplete ? { boxShadow: `inset 2px 0 0 ${C.warn}` } : {};
 
   return (
-    <tr onMouseEnter={() => { setRowHovered(true); onActivate(); }} onMouseLeave={() => setRowHovered(false)}>
+    <tr onMouseEnter={() => setRowHovered(true)} onMouseLeave={() => setRowHovered(false)}>
 
       {/* # */}
       <td style={{ ...td, ...firstTdExtra, textAlign: 'center', color: C.muted2, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
@@ -308,7 +306,6 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
   const [remarks, setRemarks] = useState('');
   const [lines, setLines] = useState<LineState[]>([emptyLine()]);
   const [formSubmitted, setFormSubmitted] = useState(false);
-  const [activeLineIdx, setActiveLineIdx] = useState(0);
 
   useEffect(() => {
     getSuppliers().then(setSuppliers).catch(console.error);
@@ -364,13 +361,6 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
   function removeImei(idx: number, imei: string) {
     setLines(prev => { const n = [...prev]; const l = n[idx]; n[idx] = { ...l, imeis: l.imeis.filter(x => x !== imei) }; return n; });
   }
-
-  useImeiScanner((imei) => {
-    const line = lines[activeLineIdx];
-    if (!line || line.item_id === 0 || line.item_type !== 'mobile') return;
-    if (line.imeis.length >= line.quantity) return;
-    addImei(activeLineIdx, imei);
-  });
 
   // Derived values
   const filledLines = lines.filter(l => l.item_id !== 0);
@@ -578,7 +568,6 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
                       onPickItem={item => pickItem(i, item)}
                       onPatch={patch => patchLine(i, patch)}
                       onRemove={() => setLines(prev => prev.filter((_, idx) => idx !== i))}
-                      onActivate={() => setActiveLineIdx(i)}
                     />
                     {line.item_type === 'mobile' && line.item_id !== 0 && (
                       <ImeiSubRow
