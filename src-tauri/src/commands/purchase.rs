@@ -21,6 +21,8 @@ pub struct PurchaseInvoiceRow {
     payment_type: String,
     cash_amount: Option<f64>,
     credit_amount: Option<f64>,
+    bank_amount: f64,
+    bank_account_id: Option<i64>,
     remarks: Option<String>,
     total_amount: f64,
     status: String,
@@ -50,6 +52,8 @@ pub struct PurchaseInvoiceDetail {
     payment_type: String,
     cash_amount: Option<f64>,
     credit_amount: Option<f64>,
+    bank_amount: f64,
+    bank_account_id: Option<i64>,
     remarks: Option<String>,
     total_amount: f64,
     status: String,
@@ -75,9 +79,11 @@ pub struct PurchaseLineInput {
 pub struct SavePurchaseInvoiceInput {
     supplier_id: i64,
     invoice_date: String,
-    payment_type: String,
+    payment_type: String, // cash | credit | bank | partial
     cash_amount: f64,
     credit_amount: f64,
+    bank_amount: f64,
+    bank_account_id: Option<i64>,
     remarks: String,
     lines: Vec<PurchaseLineInput>,
 }
@@ -85,8 +91,8 @@ pub struct SavePurchaseInvoiceInput {
 #[derive(Deserialize, Debug)]
 pub struct PurchaseReturnLineInput {
     purchase_invoice_line_id: i64,
-    quantity_returned: f64, // for accessory; mobile uses imeis.len()
-    imeis: Vec<String>,     // for mobile: specific in_stock IMEIs to return
+    quantity_returned: f64,
+    imeis: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -113,16 +119,18 @@ async fn do_save(
     let invoice_no = format!("PI-{:04}", count + 1);
     eprintln!("[purchase:rust] invoice_no: {invoice_no}, total: {total_amount}");
 
-    let cash_val: Option<f64> = if input.payment_type == "credit" {
+    let cash_val: Option<f64> = if input.payment_type == "credit" || input.payment_type == "bank" {
         None
     } else {
         Some(input.cash_amount)
     };
-    let credit_val: Option<f64> = if input.payment_type == "cash" {
-        None
-    } else {
-        Some(input.credit_amount)
-    };
+    let credit_val: Option<f64> =
+        if input.payment_type == "cash" || input.payment_type == "bank" {
+            None
+        } else {
+            Some(input.credit_amount)
+        };
+    let bank_val: f64 = input.bank_amount;
     let remarks_val: Option<&str> = if input.remarks.is_empty() {
         None
     } else {
@@ -131,8 +139,9 @@ async fn do_save(
 
     let res = sqlx::query(
         "INSERT INTO purchase_invoices \
-         (supplier_id, invoice_no, invoice_date, payment_type, cash_amount, credit_amount, remarks, total_amount, status, created_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now'))",
+         (supplier_id, invoice_no, invoice_date, payment_type, cash_amount, credit_amount, \
+          bank_amount, bank_account_id, remarks, total_amount, status, created_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now'))",
     )
     .bind(input.supplier_id)
     .bind(&invoice_no)
@@ -140,6 +149,8 @@ async fn do_save(
     .bind(&input.payment_type)
     .bind(cash_val)
     .bind(credit_val)
+    .bind(bank_val)
+    .bind(input.bank_account_id)
     .bind(remarks_val)
     .bind(total_amount)
     .execute(&mut **tx)
@@ -215,13 +226,16 @@ async fn do_save(
         }
     }
 
-    let row = sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
-        .fetch_one(&mut **tx)
-        .await
-        .map_err(|e| e.to_string())?;
-    let inventory_acct_id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
+    // ── Journal entries ──
+    let inventory_acct_id: i64 =
+        sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
+            .fetch_one(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?
+            .try_get("id")
+            .map_err(|e| e.to_string())?;
 
-    let res = sqlx::query(
+    let je_res = sqlx::query(
         "INSERT INTO journal_entries \
          (date, reference_no, narration, source_type, source_id, created_at) \
          VALUES (?, ?, ?, 'purchase', ?, datetime('now'))",
@@ -233,9 +247,10 @@ async fn do_save(
     .execute(&mut **tx)
     .await
     .map_err(|e| e.to_string())?;
-    let je_id = res.last_insert_rowid();
+    let je_id = je_res.last_insert_rowid();
     eprintln!("[purchase:rust] journal_entry inserted, id: {je_id}");
 
+    // Debit Inventory
     sqlx::query(
         "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
          VALUES (?, ?, ?, 0)",
@@ -247,48 +262,81 @@ async fn do_save(
     .await
     .map_err(|e| e.to_string())?;
 
-    if input.payment_type == "cash" || input.payment_type == "partial" {
-        let row = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+    // Credit Cash leg (cash | partial with cash)
+    let cash_credit = match input.payment_type.as_str() {
+        "cash" => total_amount,
+        "partial" if input.cash_amount > 0.0 => input.cash_amount,
+        _ => 0.0,
+    };
+    if cash_credit > 0.0 {
+        let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
             .fetch_one(&mut **tx)
             .await
+            .map_err(|e| e.to_string())?
+            .try_get("id")
             .map_err(|e| e.to_string())?;
-        let cash_acct_id: i64 = row.try_get("id").map_err(|e| e.to_string())?;
-        let cash_credit = if input.payment_type == "cash" {
-            total_amount
-        } else {
-            input.cash_amount
-        };
         sqlx::query(
             "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
              VALUES (?, ?, 0, ?)",
         )
         .bind(je_id)
-        .bind(cash_acct_id)
+        .bind(cash_acct)
         .bind(cash_credit)
         .execute(&mut **tx)
         .await
         .map_err(|e| e.to_string())?;
     }
 
-    if input.payment_type == "credit" || input.payment_type == "partial" {
-        let row = sqlx::query("SELECT payable_account_id FROM suppliers WHERE id = ?")
-            .bind(input.supplier_id)
-            .fetch_one(&mut **tx)
-            .await
-            .map_err(|e| e.to_string())?;
-        let payable_acct_id: i64 = row.try_get("payable_account_id").map_err(|e| e.to_string())?;
-        let payable_credit = if input.payment_type == "credit" {
-            total_amount
-        } else {
-            input.credit_amount
+    // Credit Payable leg (credit | partial with credit)
+    let payable_credit = match input.payment_type.as_str() {
+        "credit" => total_amount,
+        "partial" if input.credit_amount > 0.0 => input.credit_amount,
+        _ => 0.0,
+    };
+    if payable_credit > 0.0 {
+        let payable_acct: i64 =
+            sqlx::query("SELECT payable_account_id FROM suppliers WHERE id = ?")
+                .bind(input.supplier_id)
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?
+                .try_get("payable_account_id")
+                .map_err(|e| e.to_string())?;
+        sqlx::query(
+            "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+             VALUES (?, ?, 0, ?)",
+        )
+        .bind(je_id)
+        .bind(payable_acct)
+        .bind(payable_credit)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+
+    // Credit Bank leg (bank | partial with bank)
+    let bank_credit = match input.payment_type.as_str() {
+        "bank" => total_amount,
+        "partial" if input.bank_amount > 0.0 => input.bank_amount,
+        _ => 0.0,
+    };
+    if bank_credit > 0.0 {
+        let bank_acct: i64 = match input.bank_account_id {
+            Some(id) => id,
+            None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?
+                .try_get("id")
+                .map_err(|e| e.to_string())?,
         };
         sqlx::query(
             "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
              VALUES (?, ?, 0, ?)",
         )
         .bind(je_id)
-        .bind(payable_acct_id)
-        .bind(payable_credit)
+        .bind(bank_acct)
+        .bind(bank_credit)
         .execute(&mut **tx)
         .await
         .map_err(|e| e.to_string())?;
@@ -347,7 +395,8 @@ async fn do_purchase_return(
 ) -> Result<i64, String> {
     // 1. Load + guard original invoice
     let inv = sqlx::query(
-        "SELECT id, supplier_id, payment_type, cash_amount, total_amount, status \
+        "SELECT id, supplier_id, payment_type, cash_amount, credit_amount, bank_amount, \
+         bank_account_id, total_amount, status \
          FROM purchase_invoices WHERE id = ?",
     )
     .bind(input.original_invoice_id)
@@ -363,22 +412,23 @@ async fn do_purchase_return(
     let supplier_id: i64 = inv.try_get("supplier_id").map_err(|e| e.to_string())?;
     let payment_type: String = inv.try_get("payment_type").map_err(|e| e.to_string())?;
     let inv_cash_amount: Option<f64> = inv.try_get("cash_amount").map_err(|e| e.to_string())?;
+    let inv_credit_amount: Option<f64> = inv.try_get("credit_amount").map_err(|e| e.to_string())?;
+    let inv_bank_amount: f64 = inv.try_get("bank_amount").map_err(|e| e.to_string())?;
+    let inv_bank_account_id: Option<i64> = inv.try_get("bank_account_id").map_err(|e| e.to_string())?;
     let inv_total_amount: f64 = inv.try_get("total_amount").map_err(|e| e.to_string())?;
 
     // 2. Validate and process each line, accumulate return_total
     let mut return_total: f64 = 0.0;
 
-    // Store processed line data for return_lines insertion after we have return_id
     struct ProcessedLine {
         purchase_invoice_line_id: i64,
         is_mobile: bool,
         quantity_returned: f64,
-        imei_unit_ids: Vec<i64>, // populated for mobile
+        imei_unit_ids: Vec<i64>,
     }
     let mut processed: Vec<ProcessedLine> = Vec::new();
 
     for input_line in &input.lines {
-        // Load the original purchase line
         let line = sqlx::query(
             "SELECT pil.id, pil.item_id, pil.quantity, pil.rate \
              FROM purchase_invoice_lines pil \
@@ -426,12 +476,7 @@ async fn do_purchase_return(
                 .fetch_optional(&mut **tx)
                 .await
                 .map_err(|e| e.to_string())?
-                .ok_or_else(|| {
-                    format!(
-                        "IMEI {} does not belong to this invoice line",
-                        imei
-                    )
-                })?;
+                .ok_or_else(|| format!("IMEI {} does not belong to this invoice line", imei))?;
 
                 let imei_status: String =
                     imei_row.try_get("status").map_err(|e| e.to_string())?;
@@ -467,7 +512,7 @@ async fn do_purchase_return(
                 ));
             }
             sqlx::query(
-                "UPDATE stock SET quantity = quantity + ?, updated_at = datetime('now') \
+                "UPDATE stock SET quantity = quantity - ?, updated_at = datetime('now') \
                  WHERE item_id = ?",
             )
             .bind(input_line.quantity_returned)
@@ -476,7 +521,7 @@ async fn do_purchase_return(
             .await
             .map_err(|e| e.to_string())?;
             eprintln!(
-                "[purchase:rust] stock restored {} units for item_id {item_id}",
+                "[purchase:rust] stock reduced {} units for item_id {item_id}",
                 input_line.quantity_returned
             );
             return_total += line_rate * input_line.quantity_returned;
@@ -536,8 +581,7 @@ async fn do_purchase_return(
         }
     }
 
-    // 5. Check if fully returned; if so, mark invoice returned
-    // Mobile: no in_stock IMEIs remain for this invoice
+    // 5. Mark invoice returned if fully returned
     let mobile_remaining: i64 = sqlx::query(
         "SELECT COUNT(*) as cnt \
          FROM imei_units iu \
@@ -552,7 +596,6 @@ async fn do_purchase_return(
     .try_get("cnt")
     .map_err(|e| e.to_string())?;
 
-    // Accessory: total returned = total purchased for each accessory line
     let acc_fully_returned: bool = {
         let rows = sqlx::query(
             "SELECT pil.quantity, COALESCE(SUM(prl.quantity_returned), 0.0) as returned \
@@ -583,7 +626,7 @@ async fn do_purchase_return(
         eprintln!("[purchase:rust] invoice {}: marked returned", input.original_invoice_id);
     }
 
-    // 6. Journal entry — Credit Inventory, Debit Cash/Payable
+    // 6. Journal entry — Credit Inventory, Debit payment legs proportionally
     let return_ref = format!("PR-{:04}", return_id);
     let je_res = sqlx::query(
         "INSERT INTO journal_entries \
@@ -657,51 +700,97 @@ async fn do_purchase_return(
             .await
             .map_err(|e| e.to_string())?;
         }
-        "partial" => {
-            let cash_amount = inv_cash_amount.unwrap_or(0.0);
-            let cash_ratio = if inv_total_amount > 0.0 {
-                cash_amount / inv_total_amount
-            } else {
-                0.5
-            };
-            let cash_debit = return_total * cash_ratio;
-            let payable_debit = return_total - cash_debit;
-
-            let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
-                .fetch_one(&mut **tx)
-                .await
-                .map_err(|e| e.to_string())?
-                .try_get("id")
-                .map_err(|e| e.to_string())?;
-            sqlx::query(
-                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
-                 VALUES (?, ?, ?, 0)",
-            )
-            .bind(je_id)
-            .bind(cash_acct)
-            .bind(cash_debit)
-            .execute(&mut **tx)
-            .await
-            .map_err(|e| e.to_string())?;
-
-            let payable_acct: i64 =
-                sqlx::query("SELECT payable_account_id FROM suppliers WHERE id = ?")
-                    .bind(supplier_id)
+        "bank" => {
+            let bank_acct: i64 = match inv_bank_account_id {
+                Some(id) => id,
+                None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
                     .fetch_one(&mut **tx)
                     .await
                     .map_err(|e| e.to_string())?
-                    .try_get("payable_account_id")
-                    .map_err(|e| e.to_string())?;
+                    .try_get("id")
+                    .map_err(|e| e.to_string())?,
+            };
             sqlx::query(
                 "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
                  VALUES (?, ?, ?, 0)",
             )
             .bind(je_id)
-            .bind(payable_acct)
-            .bind(payable_debit)
+            .bind(bank_acct)
+            .bind(return_total)
             .execute(&mut **tx)
             .await
             .map_err(|e| e.to_string())?;
+        }
+        "partial" => {
+            // Proportional split across whichever legs were used
+            let cash_amt = inv_cash_amount.unwrap_or(0.0);
+            let credit_amt = inv_credit_amount.unwrap_or(0.0);
+            let bank_amt = inv_bank_amount;
+
+            if cash_amt > 0.0 {
+                let ratio = cash_amt / inv_total_amount;
+                let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("id")
+                    .map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, ?, 0)",
+                )
+                .bind(je_id)
+                .bind(cash_acct)
+                .bind(return_total * ratio)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+
+            if credit_amt > 0.0 {
+                let ratio = credit_amt / inv_total_amount;
+                let payable_acct: i64 =
+                    sqlx::query("SELECT payable_account_id FROM suppliers WHERE id = ?")
+                        .bind(supplier_id)
+                        .fetch_one(&mut **tx)
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_get("payable_account_id")
+                        .map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, ?, 0)",
+                )
+                .bind(je_id)
+                .bind(payable_acct)
+                .bind(return_total * ratio)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+
+            if bank_amt > 0.0 {
+                let ratio = bank_amt / inv_total_amount;
+                let bank_acct: i64 = match inv_bank_account_id {
+                    Some(id) => id,
+                    None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                        .fetch_one(&mut **tx)
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_get("id")
+                        .map_err(|e| e.to_string())?,
+                };
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, ?, 0)",
+                )
+                .bind(je_id)
+                .bind(bank_acct)
+                .bind(return_total * ratio)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
         }
         _ => return Err(format!("Unknown payment_type: {payment_type}")),
     }
@@ -764,7 +853,8 @@ pub async fn get_purchase_invoices(
 
     let rows = sqlx::query(
         "SELECT pi.id, pi.supplier_id, pi.invoice_no, pi.invoice_date, pi.payment_type, \
-         pi.cash_amount, pi.credit_amount, pi.remarks, pi.total_amount, pi.status, pi.created_at, \
+         pi.cash_amount, pi.credit_amount, pi.bank_amount, pi.bank_account_id, \
+         pi.remarks, pi.total_amount, pi.status, pi.created_at, \
          s.name as supplier_name \
          FROM purchase_invoices pi \
          JOIN suppliers s ON s.id = pi.supplier_id \
@@ -784,6 +874,8 @@ pub async fn get_purchase_invoices(
                 payment_type: r.try_get("payment_type").map_err(|e| e.to_string())?,
                 cash_amount: r.try_get("cash_amount").map_err(|e| e.to_string())?,
                 credit_amount: r.try_get("credit_amount").map_err(|e| e.to_string())?,
+                bank_amount: r.try_get("bank_amount").map_err(|e| e.to_string())?,
+                bank_account_id: r.try_get("bank_account_id").map_err(|e| e.to_string())?,
                 remarks: r.try_get("remarks").map_err(|e| e.to_string())?,
                 total_amount: r.try_get("total_amount").map_err(|e| e.to_string())?,
                 status: r.try_get("status").map_err(|e| e.to_string())?,
@@ -811,7 +903,8 @@ pub async fn get_purchase_invoice_by_id(
 
     let invoice_row = sqlx::query(
         "SELECT pi.id, pi.supplier_id, pi.invoice_no, pi.invoice_date, pi.payment_type, \
-         pi.cash_amount, pi.credit_amount, pi.remarks, pi.total_amount, pi.status, pi.created_at, \
+         pi.cash_amount, pi.credit_amount, pi.bank_amount, pi.bank_account_id, \
+         pi.remarks, pi.total_amount, pi.status, pi.created_at, \
          s.name as supplier_name \
          FROM purchase_invoices pi \
          JOIN suppliers s ON s.id = pi.supplier_id \
@@ -886,6 +979,8 @@ pub async fn get_purchase_invoice_by_id(
         payment_type: inv.try_get("payment_type").map_err(|e| e.to_string())?,
         cash_amount: inv.try_get("cash_amount").map_err(|e| e.to_string())?,
         credit_amount: inv.try_get("credit_amount").map_err(|e| e.to_string())?,
+        bank_amount: inv.try_get("bank_amount").map_err(|e| e.to_string())?,
+        bank_account_id: inv.try_get("bank_account_id").map_err(|e| e.to_string())?,
         remarks: inv.try_get("remarks").map_err(|e| e.to_string())?,
         total_amount: inv.try_get("total_amount").map_err(|e| e.to_string())?,
         status: inv.try_get("status").map_err(|e| e.to_string())?,

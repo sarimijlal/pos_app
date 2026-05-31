@@ -44,8 +44,12 @@ pub struct SalesLineInput {
 pub struct SaveSalesInvoiceInput {
     customer_id: i64,
     invoice_date: String,
-    payment_mode: String, // cash | credit | card | bank
+    payment_mode: String, // cash | credit | bank | partial
     salesperson_id: Option<i64>,
+    cash_amount: f64,
+    credit_amount: f64,
+    bank_amount: f64,
+    bank_account_id: Option<i64>,
     lines: Vec<SalesLineInput>,
 }
 
@@ -77,6 +81,10 @@ pub struct SalesInvoiceRow {
     payment_mode: String,
     salesperson_id: Option<i64>,
     total_amount: f64,
+    cash_amount: f64,
+    credit_amount: f64,
+    bank_amount: f64,
+    bank_account_id: Option<i64>,
     status: String,
     created_at: String,
     customer_name: String,
@@ -106,6 +114,10 @@ pub struct SalesInvoiceDetail {
     payment_mode: String,
     salesperson_id: Option<i64>,
     total_amount: f64,
+    cash_amount: f64,
+    credit_amount: f64,
+    bank_amount: f64,
+    bank_account_id: Option<i64>,
     status: String,
     created_at: String,
     customer_name: String,
@@ -245,10 +257,20 @@ async fn do_save(
     let invoice_no = format!("SI-{:04}", count + 1);
     eprintln!("[sales:rust] invoice_no: {invoice_no}, total: {total_amount}");
 
+    // Derive per-leg amounts for storage
+    let (cash_val, credit_val, bank_val) = match input.payment_mode.as_str() {
+        "cash"    => (total_amount, 0.0, 0.0),
+        "credit"  => (0.0, total_amount, 0.0),
+        "bank"    => (0.0, 0.0, total_amount),
+        "partial" => (input.cash_amount, input.credit_amount, input.bank_amount),
+        _         => (0.0, 0.0, 0.0),
+    };
+
     let res = sqlx::query(
         "INSERT INTO sales_invoices \
-         (customer_id, invoice_no, date, payment_mode, salesperson_id, total_amount, status, created_at) \
-         VALUES (?, ?, ?, ?, ?, ?, 'active', datetime('now'))",
+         (customer_id, invoice_no, date, payment_mode, salesperson_id, total_amount, \
+          cash_amount, credit_amount, bank_amount, bank_account_id, status, created_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now'))",
     )
     .bind(input.customer_id)
     .bind(&invoice_no)
@@ -256,6 +278,10 @@ async fn do_save(
     .bind(&input.payment_mode)
     .bind(input.salesperson_id)
     .bind(total_amount)
+    .bind(cash_val)
+    .bind(credit_val)
+    .bind(bank_val)
+    .bind(input.bank_account_id)
     .execute(&mut **tx)
     .await
     .map_err(|e| e.to_string())?;
@@ -321,10 +347,6 @@ async fn do_save(
 
         if line.item_type == "mobile" {
             for imei in &line.imeis {
-                // Resolve the specific in-stock unit FIRST, then use its id for
-                // both the UPDATE and the sales_imei_lines INSERT so we never
-                // accidentally reference a different (older, sold) row for the
-                // same IMEI (possible after a buy-back scenario).
                 let unit_row = sqlx::query(
                     "SELECT id FROM imei_units WHERE imei = ? AND status = 'in_stock'",
                 )
@@ -372,17 +394,13 @@ async fn do_save(
             .map_err(|e| e.to_string())?;
 
             if res.rows_affected() == 0 {
-                return Err(format!(
-                    "Insufficient stock for item_id {}",
-                    line.item_id
-                ));
+                return Err(format!("Insufficient stock for item_id {}", line.item_id));
             }
             eprintln!("[sales:rust] stock decremented item_id:{}", line.item_id);
         }
     }
 
-    // ── Journal entry (single je for Event A + Event B) ──────────────────────
-
+    // ── Journal entries ──
     let je_res = sqlx::query(
         "INSERT INTO journal_entries \
          (date, reference_no, narration, source_type, source_id, created_at) \
@@ -398,55 +416,140 @@ async fn do_save(
     let je_id = je_res.last_insert_rowid();
     eprintln!("[sales:rust] journal_entry inserted id:{je_id}");
 
-    // Event A — Revenue recognition: debit payment account, credit Sales Revenue
-    let debit_acct_id: i64 = match input.payment_mode.as_str() {
-        "cash" => {
-            let row = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
-                .fetch_one(&mut **tx)
-                .await
-                .map_err(|e| e.to_string())?;
-            row.try_get("id").map_err(|e| e.to_string())?
-        }
-        "card" | "bank" => {
-            let row = sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
-                .fetch_one(&mut **tx)
-                .await
-                .map_err(|e| e.to_string())?;
-            row.try_get("id").map_err(|e| e.to_string())?
-        }
-        "credit" => {
-            let row = sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
-                .bind(input.customer_id)
-                .fetch_one(&mut **tx)
-                .await
-                .map_err(|e| e.to_string())?;
-            row.try_get("receivable_account_id")
-                .map_err(|e| e.to_string())?
-        }
-        _ => return Err(format!("Unknown payment_mode: {}", input.payment_mode)),
-    };
-
-    let revenue_acct_row = sqlx::query("SELECT id FROM accounts WHERE code = '4001'")
+    let revenue_acct_id: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '4001'")
         .fetch_one(&mut **tx)
         .await
-        .map_err(|e| e.to_string())?;
-    let revenue_acct_id: i64 = revenue_acct_row
+        .map_err(|e| e.to_string())?
         .try_get("id")
         .map_err(|e| e.to_string())?;
 
-    // Debit payment account
-    sqlx::query(
-        "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
-         VALUES (?, ?, ?, 0)",
-    )
-    .bind(je_id)
-    .bind(debit_acct_id)
-    .bind(total_amount)
-    .execute(&mut **tx)
-    .await
-    .map_err(|e| e.to_string())?;
+    // Event A — Revenue recognition
+    // For non-partial: one debit line; for partial: one debit line per active leg
+    match input.payment_mode.as_str() {
+        "cash" => {
+            let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?
+                .try_get("id")
+                .map_err(|e| e.to_string())?;
+            sqlx::query(
+                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                 VALUES (?, ?, ?, 0)",
+            )
+            .bind(je_id)
+            .bind(cash_acct)
+            .bind(total_amount)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        "credit" => {
+            let ar_acct: i64 =
+                sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+                    .bind(input.customer_id)
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("receivable_account_id")
+                    .map_err(|e| e.to_string())?;
+            sqlx::query(
+                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                 VALUES (?, ?, ?, 0)",
+            )
+            .bind(je_id)
+            .bind(ar_acct)
+            .bind(total_amount)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        "bank" => {
+            let bank_acct: i64 = match input.bank_account_id {
+                Some(id) => id,
+                None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("id")
+                    .map_err(|e| e.to_string())?,
+            };
+            sqlx::query(
+                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                 VALUES (?, ?, ?, 0)",
+            )
+            .bind(je_id)
+            .bind(bank_acct)
+            .bind(total_amount)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        "partial" => {
+            if input.cash_amount > 0.0 {
+                let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("id")
+                    .map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, ?, 0)",
+                )
+                .bind(je_id)
+                .bind(cash_acct)
+                .bind(input.cash_amount)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+            if input.credit_amount > 0.0 {
+                let ar_acct: i64 =
+                    sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+                        .bind(input.customer_id)
+                        .fetch_one(&mut **tx)
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_get("receivable_account_id")
+                        .map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, ?, 0)",
+                )
+                .bind(je_id)
+                .bind(ar_acct)
+                .bind(input.credit_amount)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+            if input.bank_amount > 0.0 {
+                let bank_acct: i64 = match input.bank_account_id {
+                    Some(id) => id,
+                    None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                        .fetch_one(&mut **tx)
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_get("id")
+                        .map_err(|e| e.to_string())?,
+                };
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, ?, 0)",
+                )
+                .bind(je_id)
+                .bind(bank_acct)
+                .bind(input.bank_amount)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+        }
+        _ => return Err(format!("Unknown payment_mode: {}", input.payment_mode)),
+    }
 
-    // Credit Sales Revenue
+    // Credit Sales Revenue (full total, regardless of split)
     sqlx::query(
         "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
          VALUES (?, ?, 0, ?)",
@@ -458,19 +561,21 @@ async fn do_save(
     .await
     .map_err(|e| e.to_string())?;
 
-    // Event B — COGS: debit COGS, credit Inventory (only if cogs_total > 0)
+    // Event B — COGS: debit COGS, credit Inventory
     if cogs_total > 0.0 {
-        let cogs_row = sqlx::query("SELECT id FROM accounts WHERE code = '5001'")
+        let cogs_acct_id: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '5001'")
             .fetch_one(&mut **tx)
             .await
+            .map_err(|e| e.to_string())?
+            .try_get("id")
             .map_err(|e| e.to_string())?;
-        let cogs_acct_id: i64 = cogs_row.try_get("id").map_err(|e| e.to_string())?;
 
-        let inv_row = sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
+        let inv_acct_id: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
             .fetch_one(&mut **tx)
             .await
+            .map_err(|e| e.to_string())?
+            .try_get("id")
             .map_err(|e| e.to_string())?;
-        let inv_acct_id: i64 = inv_row.try_get("id").map_err(|e| e.to_string())?;
 
         sqlx::query(
             "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
@@ -545,7 +650,8 @@ async fn do_sales_return(
 ) -> Result<i64, String> {
     // 1. Load + guard original invoice
     let inv = sqlx::query(
-        "SELECT id, customer_id, payment_mode, status FROM sales_invoices WHERE id = ?",
+        "SELECT id, customer_id, payment_mode, cash_amount, credit_amount, bank_amount, \
+         bank_account_id, total_amount, status FROM sales_invoices WHERE id = ?",
     )
     .bind(input.original_invoice_id)
     .fetch_optional(&mut **tx)
@@ -559,6 +665,11 @@ async fn do_sales_return(
     }
     let customer_id: i64 = inv.try_get("customer_id").map_err(|e| e.to_string())?;
     let payment_mode: String = inv.try_get("payment_mode").map_err(|e| e.to_string())?;
+    let inv_cash: f64 = inv.try_get("cash_amount").map_err(|e| e.to_string())?;
+    let inv_credit: f64 = inv.try_get("credit_amount").map_err(|e| e.to_string())?;
+    let inv_bank: f64 = inv.try_get("bank_amount").map_err(|e| e.to_string())?;
+    let inv_bank_account_id: Option<i64> = inv.try_get("bank_account_id").map_err(|e| e.to_string())?;
+    let inv_total: f64 = inv.try_get("total_amount").map_err(|e| e.to_string())?;
 
     let mut return_total: f64 = 0.0;
     let mut cogs_total: f64 = 0.0;
@@ -600,9 +711,7 @@ async fn do_sales_return(
             .fetch_one(&mut **tx)
             .await
             .map_err(|e| e.to_string())?;
-        let item_type: String = item_type_row
-            .try_get("item_type")
-            .map_err(|e| e.to_string())?;
+        let item_type: String = item_type_row.try_get("item_type").map_err(|e| e.to_string())?;
 
         if item_type == "mobile" {
             if input_line.imeis.is_empty() {
@@ -626,9 +735,7 @@ async fn do_sales_return(
                 .fetch_optional(&mut **tx)
                 .await
                 .map_err(|e| e.to_string())?
-                .ok_or_else(|| {
-                    format!("IMEI {} does not belong to this invoice line", imei)
-                })?;
+                .ok_or_else(|| format!("IMEI {} does not belong to this invoice line", imei))?;
 
                 let imei_status: String =
                     imei_row.try_get("status").map_err(|e| e.to_string())?;
@@ -688,7 +795,7 @@ async fn do_sales_return(
         }
     }
 
-    // 4. INSERT sales_returns
+    // 3. INSERT sales_returns
     let sr_res = sqlx::query(
         "INSERT INTO sales_returns \
          (original_invoice_id, return_date, remarks, total_amount, created_at) \
@@ -704,7 +811,7 @@ async fn do_sales_return(
     let return_id = sr_res.last_insert_rowid();
     eprintln!("[sales:rust] sales_return inserted id:{return_id}");
 
-    // 5. INSERT sales_return_lines
+    // 4. INSERT sales_return_lines
     for pl in &processed_lines {
         if pl.item_type == "mobile" {
             for &imei_unit_id in &pl.imei_unit_ids {
@@ -735,8 +842,7 @@ async fn do_sales_return(
         }
     }
 
-    // 6. Check if fully returned
-    // Mobile: count of 'sold' IMEIs for this invoice's lines = 0
+    // 5. Mark invoice returned if fully returned
     let mobile_sold_row = sqlx::query(
         "SELECT COUNT(*) as cnt FROM imei_units iu \
          JOIN sales_imei_lines sil ON sil.imei_unit_id = iu.id \
@@ -747,19 +853,15 @@ async fn do_sales_return(
     .fetch_one(&mut **tx)
     .await
     .map_err(|e| e.to_string())?;
-    let mobile_sold_count: i64 = mobile_sold_row
-        .try_get("cnt")
-        .map_err(|e| e.to_string())?;
+    let mobile_sold_count: i64 = mobile_sold_row.try_get("cnt").map_err(|e| e.to_string())?;
 
-    // Accessory: any line where SUM(returned) < original quantity
     let acc_rows = sqlx::query(
-        "SELECT sil.id, sil.quantity, COALESCE(SUM(srl.quantity_returned), 0) as returned_qty \
-         FROM sales_invoice_lines sil \
+        "SELECT sil.id FROM sales_invoice_lines sil \
          JOIN items it ON it.id = sil.item_id AND it.item_type = 'accessory' \
          LEFT JOIN sales_return_lines srl ON srl.sales_invoice_line_id = sil.id \
          WHERE sil.sales_invoice_id = ? \
          GROUP BY sil.id, sil.quantity \
-         HAVING returned_qty < sil.quantity",
+         HAVING COALESCE(SUM(srl.quantity_returned), 0) < sil.quantity",
     )
     .bind(input.original_invoice_id)
     .fetch_all(&mut **tx)
@@ -775,10 +877,8 @@ async fn do_sales_return(
         eprintln!("[sales:rust] invoice marked returned");
     }
 
-    // 7. Journal entry
+    // 6. Journal entry — reverse Event A and Event B
     let reference_no = format!("SR-{:04}", return_id);
-    let narration = format!("Sales return {}", reference_no);
-
     let je_res = sqlx::query(
         "INSERT INTO journal_entries \
          (date, reference_no, narration, source_type, source_id, created_at) \
@@ -786,49 +886,21 @@ async fn do_sales_return(
     )
     .bind(&input.return_date)
     .bind(&reference_no)
-    .bind(&narration)
+    .bind(format!("Sales return {}", reference_no))
     .bind(return_id)
     .execute(&mut **tx)
     .await
     .map_err(|e| e.to_string())?;
     let je_id = je_res.last_insert_rowid();
 
-    // Event A reversal: Debit Sales Revenue (4001), Credit payment account
-    let revenue_row = sqlx::query("SELECT id FROM accounts WHERE code = '4001'")
+    let revenue_acct_id: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '4001'")
         .fetch_one(&mut **tx)
         .await
+        .map_err(|e| e.to_string())?
+        .try_get("id")
         .map_err(|e| e.to_string())?;
-    let revenue_acct_id: i64 = revenue_row.try_get("id").map_err(|e| e.to_string())?;
 
-    let credit_acct_id: i64 = match payment_mode.as_str() {
-        "cash" => {
-            let row = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
-                .fetch_one(&mut **tx)
-                .await
-                .map_err(|e| e.to_string())?;
-            row.try_get("id").map_err(|e| e.to_string())?
-        }
-        "card" | "bank" => {
-            let row = sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
-                .fetch_one(&mut **tx)
-                .await
-                .map_err(|e| e.to_string())?;
-            row.try_get("id").map_err(|e| e.to_string())?
-        }
-        "credit" => {
-            let row =
-                sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
-                    .bind(customer_id)
-                    .fetch_one(&mut **tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-            row.try_get("receivable_account_id")
-                .map_err(|e| e.to_string())?
-        }
-        _ => return Err(format!("Unknown payment_mode: {}", payment_mode)),
-    };
-
-    // Debit Sales Revenue
+    // Event A reversal: Debit Sales Revenue, Credit payment leg(s)
     sqlx::query(
         "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
          VALUES (?, ?, ?, 0)",
@@ -840,31 +912,149 @@ async fn do_sales_return(
     .await
     .map_err(|e| e.to_string())?;
 
-    // Credit payment account
-    sqlx::query(
-        "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
-         VALUES (?, ?, 0, ?)",
-    )
-    .bind(je_id)
-    .bind(credit_acct_id)
-    .bind(return_total)
-    .execute(&mut **tx)
-    .await
-    .map_err(|e| e.to_string())?;
+    match payment_mode.as_str() {
+        "cash" => {
+            let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?
+                .try_get("id")
+                .map_err(|e| e.to_string())?;
+            sqlx::query(
+                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                 VALUES (?, ?, 0, ?)",
+            )
+            .bind(je_id)
+            .bind(cash_acct)
+            .bind(return_total)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        "credit" => {
+            let ar_acct: i64 =
+                sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+                    .bind(customer_id)
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("receivable_account_id")
+                    .map_err(|e| e.to_string())?;
+            sqlx::query(
+                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                 VALUES (?, ?, 0, ?)",
+            )
+            .bind(je_id)
+            .bind(ar_acct)
+            .bind(return_total)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        "bank" => {
+            let bank_acct: i64 = match inv_bank_account_id {
+                Some(id) => id,
+                None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("id")
+                    .map_err(|e| e.to_string())?,
+            };
+            sqlx::query(
+                "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                 VALUES (?, ?, 0, ?)",
+            )
+            .bind(je_id)
+            .bind(bank_acct)
+            .bind(return_total)
+            .execute(&mut **tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+        "partial" => {
+            // Proportional credit to each payment leg
+            if inv_cash > 0.0 {
+                let ratio = inv_cash / inv_total;
+                let cash_acct: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1001'")
+                    .fetch_one(&mut **tx)
+                    .await
+                    .map_err(|e| e.to_string())?
+                    .try_get("id")
+                    .map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, 0, ?)",
+                )
+                .bind(je_id)
+                .bind(cash_acct)
+                .bind(return_total * ratio)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+            if inv_credit > 0.0 {
+                let ratio = inv_credit / inv_total;
+                let ar_acct: i64 =
+                    sqlx::query("SELECT receivable_account_id FROM customers WHERE id = ?")
+                        .bind(customer_id)
+                        .fetch_one(&mut **tx)
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_get("receivable_account_id")
+                        .map_err(|e| e.to_string())?;
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, 0, ?)",
+                )
+                .bind(je_id)
+                .bind(ar_acct)
+                .bind(return_total * ratio)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+            if inv_bank > 0.0 {
+                let ratio = inv_bank / inv_total;
+                let bank_acct: i64 = match inv_bank_account_id {
+                    Some(id) => id,
+                    None => sqlx::query("SELECT id FROM accounts WHERE code = '1002'")
+                        .fetch_one(&mut **tx)
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .try_get("id")
+                        .map_err(|e| e.to_string())?,
+                };
+                sqlx::query(
+                    "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
+                     VALUES (?, ?, 0, ?)",
+                )
+                .bind(je_id)
+                .bind(bank_acct)
+                .bind(return_total * ratio)
+                .execute(&mut **tx)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
+        }
+        _ => return Err(format!("Unknown payment_mode: {}", payment_mode)),
+    }
 
-    // Event B reversal: Debit Inventory (1004), Credit COGS (5001)
+    // Event B reversal: Debit Inventory, Credit COGS
     if cogs_total > 0.0 {
-        let inv_row = sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
+        let inv_acct_id: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '1004'")
             .fetch_one(&mut **tx)
             .await
+            .map_err(|e| e.to_string())?
+            .try_get("id")
             .map_err(|e| e.to_string())?;
-        let inv_acct_id: i64 = inv_row.try_get("id").map_err(|e| e.to_string())?;
 
-        let cogs_row = sqlx::query("SELECT id FROM accounts WHERE code = '5001'")
+        let cogs_acct_id: i64 = sqlx::query("SELECT id FROM accounts WHERE code = '5001'")
             .fetch_one(&mut **tx)
             .await
+            .map_err(|e| e.to_string())?
+            .try_get("id")
             .map_err(|e| e.to_string())?;
-        let cogs_acct_id: i64 = cogs_row.try_get("id").map_err(|e| e.to_string())?;
 
         sqlx::query(
             "INSERT INTO journal_entry_lines (journal_entry_id, account_id, debit, credit) \
@@ -913,7 +1103,8 @@ pub async fn get_sales_invoices(
 
     let rows = sqlx::query(
         "SELECT si.id, si.customer_id, si.invoice_no, si.date, si.payment_mode, \
-         si.salesperson_id, si.total_amount, si.status, si.created_at, \
+         si.salesperson_id, si.total_amount, si.cash_amount, si.credit_amount, \
+         si.bank_amount, si.bank_account_id, si.status, si.created_at, \
          c.name as customer_name, sp.name as salesperson_name \
          FROM sales_invoices si \
          JOIN customers c ON c.id = si.customer_id \
@@ -934,6 +1125,10 @@ pub async fn get_sales_invoices(
                 payment_mode: r.try_get("payment_mode").map_err(|e| e.to_string())?,
                 salesperson_id: r.try_get("salesperson_id").map_err(|e| e.to_string())?,
                 total_amount: r.try_get("total_amount").map_err(|e| e.to_string())?,
+                cash_amount: r.try_get("cash_amount").map_err(|e| e.to_string())?,
+                credit_amount: r.try_get("credit_amount").map_err(|e| e.to_string())?,
+                bank_amount: r.try_get("bank_amount").map_err(|e| e.to_string())?,
+                bank_account_id: r.try_get("bank_account_id").map_err(|e| e.to_string())?,
                 status: r.try_get("status").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
                 customer_name: r.try_get("customer_name").map_err(|e| e.to_string())?,
@@ -960,7 +1155,8 @@ pub async fn get_sales_invoice_by_id(
 
     let inv = sqlx::query(
         "SELECT si.id, si.customer_id, si.invoice_no, si.date, si.payment_mode, \
-         si.salesperson_id, si.total_amount, si.status, si.created_at, \
+         si.salesperson_id, si.total_amount, si.cash_amount, si.credit_amount, \
+         si.bank_amount, si.bank_account_id, si.status, si.created_at, \
          c.name as customer_name, sp.name as salesperson_name \
          FROM sales_invoices si \
          JOIN customers c ON c.id = si.customer_id \
@@ -1037,6 +1233,10 @@ pub async fn get_sales_invoice_by_id(
         payment_mode: inv.try_get("payment_mode").map_err(|e| e.to_string())?,
         salesperson_id: inv.try_get("salesperson_id").map_err(|e| e.to_string())?,
         total_amount: inv.try_get("total_amount").map_err(|e| e.to_string())?,
+        cash_amount: inv.try_get("cash_amount").map_err(|e| e.to_string())?,
+        credit_amount: inv.try_get("credit_amount").map_err(|e| e.to_string())?,
+        bank_amount: inv.try_get("bank_amount").map_err(|e| e.to_string())?,
+        bank_account_id: inv.try_get("bank_account_id").map_err(|e| e.to_string())?,
         status: inv.try_get("status").map_err(|e| e.to_string())?,
         created_at: inv.try_get("created_at").map_err(|e| e.to_string())?,
         customer_name: inv.try_get("customer_name").map_err(|e| e.to_string())?,
