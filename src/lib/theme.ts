@@ -1,7 +1,22 @@
 import { useState, useEffect } from 'react';
 
+export type Scheme = 'cool' | 'neutral' | 'warm';
+
+export const ACCENTS: Record<string, { light: string; dark: string; label: string }> = {
+  slate:  { light: '#1f3a8a', dark: '#4d72d4', label: 'Slate' },
+  ink:    { light: '#0f0f10', dark: '#737373', label: 'Ink' },
+  forest: { light: '#1f6b3a', dark: '#3daa68', label: 'Forest' },
+  plum:   { light: '#5a1f6b', dark: '#9a4db4', label: 'Plum' },
+  burnt:  { light: '#8a3a1f', dark: '#c4714a', label: 'Burnt' },
+};
+
+function applyAccent(key: string) {
+  const acc = ACCENTS[key] ?? ACCENTS.slate;
+  document.documentElement.style.setProperty('--c-accent-light', acc.light);
+  document.documentElement.style.setProperty('--c-accent-dark', acc.dark);
+}
+
 // ── Shared color palette (CSS variable references) ─────────────────────────
-// Used by all screens as `import { C } from '@/lib/theme'`
 export const C = {
   ink:    'var(--c-ink)',
   ink2:   'var(--c-ink2)',
@@ -41,15 +56,43 @@ export const C = {
 export function useTheme() {
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('theme');
+      const saved = localStorage.getItem('pos_theme');
       return saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
     } catch { return false; }
   });
 
+  const [scheme, setSchemeState] = useState<Scheme>(() => {
+    try { return (localStorage.getItem('pos_scheme') as Scheme) ?? 'cool'; } catch { return 'cool'; }
+  });
+
+  const [accentKey, setAccentKeyState] = useState<string>(() => {
+    try { return localStorage.getItem('pos_accent') ?? 'slate'; } catch { return 'slate'; }
+  });
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
-    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch {}
+    try { localStorage.setItem('pos_theme', isDark ? 'dark' : 'light'); } catch {}
   }, [isDark]);
 
-  return { isDark, toggle: () => setIsDark(d => !d) };
+  useEffect(() => {
+    document.documentElement.dataset.scheme = scheme;
+    try { localStorage.setItem('pos_scheme', scheme); } catch {}
+  }, [scheme]);
+
+  useEffect(() => {
+    applyAccent(accentKey);
+    try { localStorage.setItem('pos_accent', accentKey); } catch {}
+  }, [accentKey]);
+
+  const setScheme = (s: Scheme) => setSchemeState(s);
+  const setAccent = (key: string) => setAccentKeyState(key);
+
+  return {
+    isDark,
+    toggle: () => setIsDark(d => !d),
+    scheme,
+    setScheme,
+    accentKey,
+    setAccent,
+  };
 }
