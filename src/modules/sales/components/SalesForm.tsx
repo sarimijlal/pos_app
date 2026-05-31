@@ -636,9 +636,9 @@ export function SalesForm({ onSaved, onCancel }: { onSaved: () => void; onCancel
             </span>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1020, borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: 30 }} /><col /><col style={{ width: 108 }} /><col style={{ width: 260 }} />
+                <col style={{ width: 30 }} /><col /><col style={{ width: 108 }} /><col style={{ width: 200 }} />
                 <col style={{ width: 84 }} /><col style={{ width: 140 }} /><col style={{ width: 120 }} />
                 <col style={{ width: 140 }} /><col style={{ width: 48 }} />
               </colgroup>

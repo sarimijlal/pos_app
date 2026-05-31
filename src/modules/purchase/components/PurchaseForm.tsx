@@ -547,7 +547,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
             </span>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1020, borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
                 <col style={{ width: 30 }} /><col /><col style={{ width: 108 }} /><col style={{ width: 190 }} />
                 <col style={{ width: 84 }} /><col style={{ width: 140 }} /><col style={{ width: 120 }} />
