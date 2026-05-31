@@ -85,19 +85,22 @@ export const salespersons = sqliteTable('salespersons', {
 // ─── Purchase Module ─────────────────────────────────────────────────────────
 
 export const purchaseInvoices = sqliteTable('purchase_invoices', {
-  id:            integer('id').primaryKey({ autoIncrement: true }),
-  supplier_id:   integer('supplier_id').notNull().references(() => suppliers.id),
-  invoice_no:    text('invoice_no').notNull().unique(),
-  invoice_date:  text('invoice_date').notNull(),
-  // cash | credit | partial
-  payment_type:  text('payment_type').notNull(),
-  cash_amount:   real('cash_amount'),
-  credit_amount: real('credit_amount'),
-  remarks:       text('remarks'),
-  total_amount:  real('total_amount').notNull(),
+  id:              integer('id').primaryKey({ autoIncrement: true }),
+  supplier_id:     integer('supplier_id').notNull().references(() => suppliers.id),
+  invoice_no:      text('invoice_no').notNull().unique(),
+  invoice_date:    text('invoice_date').notNull(),
+  // cash | credit | bank | partial
+  payment_type:    text('payment_type').notNull(),
+  cash_amount:     real('cash_amount'),
+  credit_amount:   real('credit_amount'),
+  bank_amount:     real('bank_amount').notNull().default(0),
+  // nullable: NULL = default Bank account (1002); set for future multi-bank selection
+  bank_account_id: integer('bank_account_id').references(() => accounts.id),
+  remarks:         text('remarks'),
+  total_amount:    real('total_amount').notNull(),
   // active | returned
-  status:        text('status').notNull().default('active'),
-  created_at:    text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  status:          text('status').notNull().default('active'),
+  created_at:      text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 export const purchaseInvoiceLines = sqliteTable('purchase_invoice_lines', {
@@ -113,17 +116,23 @@ export const purchaseInvoiceLines = sqliteTable('purchase_invoice_lines', {
 // ─── Sales Module ─────────────────────────────────────────────────────────────
 
 export const salesInvoices = sqliteTable('sales_invoices', {
-  id:             integer('id').primaryKey({ autoIncrement: true }),
-  customer_id:    integer('customer_id').notNull().references(() => customers.id),
-  invoice_no:     text('invoice_no').notNull().unique(),
-  date:           text('date').notNull(),
-  // cash | credit | card | bank
-  payment_mode:   text('payment_mode').notNull(),
-  salesperson_id: integer('salesperson_id').references(() => salespersons.id),
-  total_amount:   real('total_amount').notNull(),
+  id:              integer('id').primaryKey({ autoIncrement: true }),
+  customer_id:     integer('customer_id').notNull().references(() => customers.id),
+  invoice_no:      text('invoice_no').notNull().unique(),
+  date:            text('date').notNull(),
+  // cash | credit | bank | partial
+  payment_mode:    text('payment_mode').notNull(),
+  salesperson_id:  integer('salesperson_id').references(() => salespersons.id),
+  total_amount:    real('total_amount').notNull(),
+  // split amounts — used when payment_mode = 'partial'; also populated for non-partial for ledger clarity
+  cash_amount:     real('cash_amount').notNull().default(0),
+  credit_amount:   real('credit_amount').notNull().default(0),
+  bank_amount:     real('bank_amount').notNull().default(0),
+  // nullable: NULL = default Bank account (1002); set for future multi-bank selection
+  bank_account_id: integer('bank_account_id').references(() => accounts.id),
   // active | returned
-  status:         text('status').notNull().default('active'),
-  created_at:     text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  status:          text('status').notNull().default('active'),
+  created_at:      text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
 
 export const salesInvoiceLines = sqliteTable('sales_invoice_lines', {

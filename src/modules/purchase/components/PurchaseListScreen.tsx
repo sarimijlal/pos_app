@@ -6,7 +6,7 @@ import type { Supplier } from '../../../../interfaces';
 
 import { C } from '../../../lib/theme';
 
-type PayType = 'all' | 'cash' | 'credit' | 'partial';
+type PayType = 'all' | 'cash' | 'credit' | 'bank' | 'partial';
 type SortCol = 'date' | 'no' | 'total';
 type DatePreset = 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'month';
 
@@ -54,7 +54,7 @@ function presetLabel(p: DatePreset, from: string, to: string) {
 }
 
 const PAY_LABEL: Record<PayType, string> = {
-  all: 'All', cash: 'Cash', credit: 'Credit', partial: 'Partial',
+  all: 'All', cash: 'Cash', credit: 'Credit', bank: 'Bank', partial: 'Partial',
 };
 
 function PayChip({ type }: { type: Exclude<PayType, 'all'> }) {
@@ -63,13 +63,15 @@ function PayChip({ type }: { type: Exclude<PayType, 'all'> }) {
     display: 'inline-grid', placeItems: 'center',
   };
   const map: Record<string, React.CSSProperties> = {
-    cash:    { background: C.okBg, borderColor: 'var(--c-ok-border)', color: C.ok },
-    credit:  { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`, color: C.warn },
-    partial: { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`, color: C.warn },
+    cash:    { background: C.okBg,   borderColor: 'var(--c-ok-border)',                                  color: C.ok },
+    credit:  { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`,     color: C.warn },
+    bank:    { background: C.subtle, borderColor: C.line2,                                                color: C.ink2 },
+    partial: { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`,     color: C.warn },
   };
   const icons: Record<string, React.ReactNode> = {
     cash:    <><rect x="2" y="4" width="12" height="8" rx="1"/><circle cx="8" cy="8" r="2"/></>,
     credit:  <><path d="M3 13V3M3 8h7l-2-2M3 8l2 2"/></>,
+    bank:    <><path d="M2 6l6-3 6 3"/><path d="M3 7v5M8 7v5M13 7v5"/><path d="M2 13h12"/></>,
     partial: <><circle cx="8" cy="8" r="6"/><path d="M8 2v6l4 2"/></>,
   };
   return (
@@ -542,7 +544,7 @@ export function PurchaseListScreen({ onNew, onViewDetail, onReturn }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '12px 14px', borderRight: `1px solid ${C.line}` }}>
             <label style={{ fontSize: 10.5, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Payment type</label>
             <div style={{ display: 'inline-flex', alignItems: 'stretch', border: `1px solid ${C.line2}`, borderRadius: 4, background: C.subtle, padding: 2, gap: 2, height: 32, width: '100%', overflow: 'hidden' }}>
-              {(['all', 'cash', 'credit', 'partial'] as PayType[]).map(m => (
+              {(['all', 'cash', 'credit', 'bank', 'partial'] as PayType[]).map(m => (
                 <button
                   key={m}
                   onClick={() => { setFilters(f => ({ ...f, payment: m })); setPage(1); }}

@@ -3,9 +3,13 @@ export type SalesInvoice = {
   customer_id: number;
   invoice_no: string;
   date: string;
-  payment_mode: 'cash' | 'credit' | 'card' | 'bank';
+  payment_mode: 'cash' | 'credit' | 'bank' | 'partial';
   salesperson_id: number | null;
   total_amount: number;
+  cash_amount: number;
+  credit_amount: number;
+  bank_amount: number;
+  bank_account_id: number | null;
   status: 'active' | 'returned';
   created_at: string;
 };
@@ -35,8 +39,12 @@ export type SalesLineInput = {
 export type SaveSalesInvoiceInput = {
   customer_id: number;
   invoice_date: string;
-  payment_mode: 'cash' | 'credit' | 'card' | 'bank';
+  payment_mode: 'cash' | 'credit' | 'bank' | 'partial';
   salesperson_id: number | null;
+  cash_amount: number;
+  credit_amount: number;
+  bank_amount: number;
+  bank_account_id: number | null;
   lines: SalesLineInput[];
 };
 
