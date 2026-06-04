@@ -24,6 +24,7 @@ pub struct AccessoryInventoryRow {
 #[derive(Serialize)]
 pub struct ItemImeiRow {
     imei: String,
+    imei2: Option<String>,
     status: String,
     created_at: String,
 }
@@ -31,6 +32,7 @@ pub struct ItemImeiRow {
 #[derive(Serialize)]
 pub struct ImeiLookupResult {
     imei: String,
+    imei2: Option<String>,
     status: String,
     item_name: String,
     purchase_invoice_id: i64,
@@ -294,7 +296,7 @@ pub async fn get_item_imeis(
     };
 
     let rows = sqlx::query(
-        "SELECT imei, status, created_at FROM imei_units \
+        "SELECT imei, imei2, status, created_at FROM imei_units \
          WHERE item_id = ? ORDER BY created_at DESC",
     )
     .bind(item_id)
@@ -306,6 +308,7 @@ pub async fn get_item_imeis(
         .map(|r| {
             Ok(ItemImeiRow {
                 imei: r.try_get("imei").map_err(|e| e.to_string())?,
+                imei2: r.try_get("imei2").map_err(|e| e.to_string())?,
                 status: r.try_get("status").map_err(|e| e.to_string())?,
                 created_at: r.try_get("created_at").map_err(|e| e.to_string())?,
             })
@@ -330,7 +333,7 @@ pub async fn lookup_imei(
 
     let rows = sqlx::query(
         "SELECT \
-           iu.imei, iu.status, \
+           iu.imei, iu.imei2, iu.status, \
            it.name as item_name, \
            pi.id as purchase_invoice_id, \
            pi.invoice_no as purchase_invoice_no, \
@@ -351,8 +354,9 @@ pub async fn lookup_imei(
          LEFT JOIN sales_invoice_lines slines ON slines.id = sil.sales_invoice_line_id \
          LEFT JOIN sales_invoices si ON si.id = slines.sales_invoice_id \
          LEFT JOIN customers cus ON cus.id = si.customer_id \
-         WHERE iu.imei = ? ORDER BY iu.id ASC",
+         WHERE iu.imei = ? OR iu.imei2 = ? ORDER BY iu.id ASC",
     )
+    .bind(&imei)
     .bind(&imei)
     .fetch_all(&pool)
     .await
@@ -365,6 +369,7 @@ pub async fn lookup_imei(
             let profit = sale_price.map(|sp| sp - cost_price);
             Ok(ImeiLookupResult {
                 imei: r.try_get("imei").map_err(|e| e.to_string())?,
+                imei2: r.try_get("imei2").map_err(|e| e.to_string())?,
                 status: r.try_get("status").map_err(|e| e.to_string())?,
                 item_name: r.try_get("item_name").map_err(|e| e.to_string())?,
                 purchase_invoice_id: r.try_get("purchase_invoice_id").map_err(|e| e.to_string())?,

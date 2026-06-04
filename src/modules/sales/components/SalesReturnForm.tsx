@@ -42,7 +42,7 @@ function TypeChip({ type }: { type: 'mobile' | 'accessory' }) {
   );
 }
 
-function ImeiBadge({ imei, status }: { imei: string; status: string }) {
+function ImeiBadge({ imei, imei2, status }: { imei: string; imei2?: string | null; status: string }) {
   const colors: Record<string, { bg: string; border: string; pip: string; label: string }> = {
     sold: { bg: 'rgba(15,122,74,0.05)', border: 'rgba(15,122,74,0.28)', pip: C.ok, label: C.ok },
     in_stock: { bg: 'rgba(31,58,138,0.05)', border: 'rgba(31,58,138,0.26)', pip: C.info, label: C.info },
@@ -52,7 +52,7 @@ function ImeiBadge({ imei, status }: { imei: string; status: string }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'JetBrains Mono, monospace', fontSize: 11.5, padding: '3px 7px 3px 6px', borderRadius: 3, background: c.bg, border: `1px solid ${c.border}`, color: C.ink2, letterSpacing: '0.02em' }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.pip, flexShrink: 0 }} />
-      {imei}
+      <span>{imei}{imei2 && <span style={{ opacity: 0.6 }}> / {imei2}</span>}</span>
       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: c.label }}>
         {status === 'sold' ? 'Sold' : status === 'in_stock' ? 'In Stock' : 'Returned'}
       </span>
@@ -143,7 +143,7 @@ function OriginalInvoiceCard({ invoice }: { invoice: SalesInvoiceDetail }) {
                   </div>
                   {mobile && line.imeis.length > 0 && (
                     <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                      {line.imeis.map(im => <ImeiBadge key={im.imei} imei={im.imei} status={im.status} />)}
+                      {line.imeis.map(im => <ImeiBadge key={im.imei} imei={im.imei} imei2={im.imei2} status={im.status} />)}
                     </div>
                   )}
                 </td>
@@ -612,7 +612,7 @@ export function SalesReturnForm({ initialInvoiceId, onSaved, onCancel }: Props) 
                                     )}
                                     {/* pip */}
                                     <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: isReturnable ? (isSel ? 'rgba(255,255,255,0.85)' : C.ok) : C.muted2 }} />
-                                    {imei.imei}
+                                    <span>{imei.imei}{imei.imei2 && <span style={{ opacity: 0.6 }}> / {imei.imei2}</span>}</span>
                                     {!isReturnable && (
                                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: imei.status === 'returned' ? C.warn : C.info, opacity: 0.8 }}>
                                         {imei.status === 'returned' ? 'Returned' : 'In Stock'}

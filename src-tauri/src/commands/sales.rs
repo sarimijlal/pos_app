@@ -7,7 +7,14 @@ use tauri_plugin_sql::{DbInstances, DbPool};
 #[derive(Serialize)]
 pub struct ImeiDetail {
     imei: String,
+    imei2: Option<String>,
     status: String,
+}
+
+#[derive(Serialize)]
+pub struct ImeiUnitInfo {
+    imei: String,
+    imei2: Option<String>,
 }
 
 // ─── Salesperson types ────────────────────────────────────────────────────────
@@ -1190,7 +1197,7 @@ pub async fn get_sales_invoice_by_id(
         let line_id: i64 = lr.try_get("id").map_err(|e| e.to_string())?;
 
         let imei_rows = sqlx::query(
-            "SELECT iu.imei, iu.status \
+            "SELECT iu.imei, iu.imei2, iu.status \
              FROM sales_imei_lines sil \
              JOIN imei_units iu ON iu.id = sil.imei_unit_id \
              WHERE sil.sales_invoice_line_id = ? \
@@ -1206,6 +1213,7 @@ pub async fn get_sales_invoice_by_id(
             .map(|r| {
                 Ok(ImeiDetail {
                     imei: r.try_get::<String, _>("imei").map_err(|e| e.to_string())?,
+                    imei2: r.try_get::<Option<String>, _>("imei2").map_err(|e| e.to_string())?,
                     status: r.try_get::<String, _>("status").map_err(|e| e.to_string())?,
                 })
             })
@@ -1249,7 +1257,7 @@ pub async fn get_sales_invoice_by_id(
 pub async fn get_available_imeis(
     db_instances: tauri::State<'_, DbInstances>,
     item_id: i64,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<ImeiUnitInfo>, String> {
     let pool = {
         let instances = db_instances.0.read().await;
         match instances
@@ -1261,7 +1269,7 @@ pub async fn get_available_imeis(
     };
 
     let rows = sqlx::query(
-        "SELECT imei FROM imei_units WHERE item_id = ? AND status = 'in_stock' ORDER BY created_at",
+        "SELECT imei, imei2 FROM imei_units WHERE item_id = ? AND status = 'in_stock' ORDER BY created_at",
     )
     .bind(item_id)
     .fetch_all(&pool)
@@ -1269,6 +1277,11 @@ pub async fn get_available_imeis(
     .map_err(|e| e.to_string())?;
 
     rows.iter()
-        .map(|r| r.try_get::<String, _>("imei").map_err(|e| e.to_string()))
+        .map(|r| {
+            Ok(ImeiUnitInfo {
+                imei: r.try_get::<String, _>("imei").map_err(|e| e.to_string())?,
+                imei2: r.try_get::<Option<String>, _>("imei2").map_err(|e| e.to_string())?,
+            })
+        })
         .collect()
 }

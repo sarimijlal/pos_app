@@ -29,6 +29,12 @@ pub fn run() {
             sql: include_str!("../../src/db/migrations/0003_payment_bank_split.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 5,
+            description: "dual_imei",
+            sql: include_str!("../../src/db/migrations/0004_dual_imei.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

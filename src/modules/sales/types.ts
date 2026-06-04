@@ -55,7 +55,13 @@ export type SalesInvoiceRow = SalesInvoice & {
 
 export type ImeiDetail = {
   imei: string;
+  imei2?: string | null;
   status: 'in_stock' | 'sold' | 'returned';
+};
+
+export type ImeiUnitInfo = {
+  imei: string;
+  imei2: string | null;
 };
 
 export type SalesInvoiceDetail = SalesInvoice & {

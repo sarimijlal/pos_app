@@ -24,6 +24,11 @@ export type PurchaseInvoiceLine = {
   total: number;
 };
 
+export type ImeiInput = {
+  imei: string;
+  imei2?: string;
+};
+
 export type PurchaseLineInput = {
   item_id: number;
   item_type: 'mobile' | 'accessory';
@@ -32,7 +37,7 @@ export type PurchaseLineInput = {
   rate: number;
   discount: number;
   total: number;
-  imeis: string[];
+  imeis: ImeiInput[];
 };
 
 export type SavePurchaseInvoiceInput = {
@@ -53,6 +58,7 @@ export type PurchaseInvoiceRow = PurchaseInvoice & {
 
 export type ImeiDetail = {
   imei: string;
+  imei2?: string | null;
   status: 'in_stock' | 'sold' | 'returned';
 };
 
