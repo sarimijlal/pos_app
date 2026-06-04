@@ -5,7 +5,7 @@ import { getSalespersons, getAvailableImeis } from '@/db/repositories/sales';
 import { useSaveSalesInvoice } from '../hooks/useSaveSalesInvoice';
 import { useSalesStore } from '../store';
 import type { Customer, Item, Salesperson } from '../../../../interfaces';
-import type { SalesLineInput } from '../types';
+import type { SalesLineInput, ImeiUnitInfo } from '../types';
 import { C } from '../../../lib/theme';
 
 function fmtNum(n: number) {
@@ -25,7 +25,7 @@ function Kbd({ children }: { children: string }) {
 type SplitMethod = 'cash' | 'credit' | 'bank';
 
 interface LineState extends SalesLineInput {
-  availableImeis: string[];
+  availableImeis: ImeiUnitInfo[];
   loadingImeis: boolean;
   imeiCellOpen: boolean;
   imeiSearch: string;
@@ -83,7 +83,7 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddIme
   const isMobile = line.item_type === 'mobile';
   const priceInvalid = submitted && !isEmpty && (line.sale_price <= 0 || isNaN(line.sale_price));
   const filteredItems = items.filter(it => !itemSearch || it.name.toLowerCase().includes(itemSearch.toLowerCase()));
-  const filteredAvail = line.availableImeis.filter(im => !line.imeiSearch || im.includes(line.imeiSearch));
+  const filteredAvail = line.availableImeis.filter(u => !line.imeiSearch || u.imei.includes(line.imeiSearch) || (u.imei2 && u.imei2.includes(line.imeiSearch)));
 
   const tdBg = rowHovered && !isEmpty ? 'var(--c-subtle)' : C.paper;
   const td: React.CSSProperties = { padding: 0, borderBottom: `1px solid ${C.line}`, verticalAlign: 'middle', position: 'relative', background: tdBg };
@@ -173,18 +173,24 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddIme
                 {line.loadingImeis ? 'Loading IMEIs…' : '+ Tap to select IMEI'}
               </span>
             )}
-            {line.imeis.map(imei => (
-              <span key={imei} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, background: C.infoBg, border: '1px solid rgba(31,58,138,0.22)', borderRadius: 3, padding: '2px 4px 2px 6px', color: C.info, letterSpacing: '0.02em' }}>
-                {imei}
-                <span data-ix="1" onClick={e => { e.stopPropagation(); onRemoveImei(imei); }}
-                  style={{ width: 14, height: 14, borderRadius: 2, display: 'inline-grid', placeItems: 'center', cursor: 'pointer', color: 'rgba(31,58,138,0.6)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(31,58,138,0.18)'; (e.currentTarget as HTMLElement).style.color = C.info; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(31,58,138,0.6)'; }}
-                >
-                  <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            {line.imeis.map(imei => {
+              const unit = line.availableImeis.find(u => u.imei === imei);
+              return (
+                <span key={imei} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, background: C.infoBg, border: '1px solid rgba(31,58,138,0.22)', borderRadius: 3, padding: '2px 4px 2px 6px', color: C.info, letterSpacing: '0.02em' }}>
+                  <span>
+                    {imei}
+                    {unit?.imei2 && <span style={{ color: 'rgba(31,58,138,0.55)', fontSize: 10.5 }}> /{unit.imei2}</span>}
+                  </span>
+                  <span data-ix="1" onClick={e => { e.stopPropagation(); onRemoveImei(imei); }}
+                    style={{ width: 14, height: 14, borderRadius: 2, display: 'inline-grid', placeItems: 'center', cursor: 'pointer', color: 'rgba(31,58,138,0.6)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(31,58,138,0.18)'; (e.currentTarget as HTMLElement).style.color = C.info; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(31,58,138,0.6)'; }}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                  </span>
                 </span>
-              </span>
-            ))}
+              );
+            })}
             <input ref={imeiInputRef} className="sf-cell"
               style={{ flex: 1, minWidth: 90, border: 0, outline: 0, background: 'transparent', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ink, padding: '2px 4px', height: 22 }}
               placeholder={line.imeis.length > 0 ? '+ Scan / add' : 'Scan or type IMEI…'}
@@ -196,8 +202,11 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddIme
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   const trimmed = line.imeiSearch.trim();
-                  if (filteredAvail.length === 1 && !line.imeis.includes(filteredAvail[0])) { onAddImei(filteredAvail[0]); }
-                  else if (trimmed && line.availableImeis.includes(trimmed) && !line.imeis.includes(trimmed)) { onAddImei(trimmed); }
+                  if (filteredAvail.length === 1 && !line.imeis.includes(filteredAvail[0].imei)) { onAddImei(filteredAvail[0].imei); }
+                  else if (trimmed) {
+                    const found = line.availableImeis.find(u => (u.imei === trimmed || u.imei2 === trimmed) && !line.imeis.includes(u.imei));
+                    if (found) onAddImei(found.imei);
+                  }
                   onPatch({ imeiSearch: '' });
                 }
               }}
@@ -217,17 +226,20 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddIme
                   ) : filteredAvail.length === 0 && line.imeiSearch ? (
                     <div style={{ padding: '14px 10px', color: C.muted, fontSize: 12.5, textAlign: 'center' }}>No match for "{line.imeiSearch}"</div>
                   ) : (
-                    line.availableImeis.map(imei => {
-                      if (line.imeiSearch && !imei.includes(line.imeiSearch)) return null;
-                      const isAdded = line.imeis.includes(imei);
+                    line.availableImeis.map(unit => {
+                      if (line.imeiSearch && !unit.imei.includes(line.imeiSearch) && !(unit.imei2 && unit.imei2.includes(line.imeiSearch))) return null;
+                      const isAdded = line.imeis.includes(unit.imei);
                       return (
-                        <div key={imei}
-                          onClick={() => { if (!isAdded) { onAddImei(imei); onPatch({ imeiSearch: '' }); } }}
+                        <div key={unit.imei}
+                          onClick={() => { if (!isAdded) { onAddImei(unit.imei); onPatch({ imeiSearch: '' }); } }}
                           style={{ padding: '7px 10px', borderRadius: 4, cursor: isAdded ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, opacity: isAdded ? 0.55 : 1 }}
                           onMouseEnter={e => { if (!isAdded) e.currentTarget.style.background = C.subtle; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{imei}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>
+                            {unit.imei}
+                            {unit.imei2 && <span style={{ color: C.muted, fontSize: 11 }}> / {unit.imei2}</span>}
+                          </span>
                           <span style={{ marginLeft: 'auto', color: C.muted, fontSize: 11.5 }}>{isAdded ? 'added ✓' : 'in stock'}</span>
                         </div>
                       );
@@ -235,7 +247,7 @@ function LineRow({ rowNum, line, items, submitted, onPickItem, onPatch, onAddIme
                   )}
                 </div>
                 <div style={{ borderTop: `1px solid ${C.line}`, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, background: C.subtle, fontSize: 11.5, color: C.muted }}>
-                  <span>{line.availableImeis.length - line.imeis.length} of {line.availableImeis.length} in stock</span>
+                  <span>{line.availableImeis.length - line.imeis.length} of {line.availableImeis.length} units in stock</span>
                   <span style={{ marginLeft: 'auto' }}><Kbd>↑↓</Kbd> · <Kbd>↵</Kbd> add · <Kbd>Esc</Kbd> close</span>
                 </div>
               </div>

@@ -4,7 +4,7 @@ import { getItems } from '@/db/repositories/inventory';
 import { useSavePurchaseInvoice } from '../hooks/useSavePurchaseInvoice';
 import { usePurchaseStore } from '../store';
 import type { Supplier, Item } from '../../../../interfaces';
-import type { PurchaseLineInput } from '../types';
+import type { PurchaseLineInput, ImeiInput } from '../types';
 import { C } from '../../../lib/theme';
 
 function fmtNum(n: number) {
@@ -28,7 +28,7 @@ interface LineState extends PurchaseLineInput {
 }
 
 function emptyLine(): LineState {
-  return { item_id: 0, item_type: 'accessory', item_name: '', quantity: 1, rate: 0, discount: 0, total: 0, imeis: [], imeiInput: '' };
+  return { item_id: 0, item_type: 'accessory', item_name: '', quantity: 1, rate: 0, discount: 0, total: 0, imeis: [] as ImeiInput[], imeiInput: '' };
 }
 
 // ── LineRow ───────────────────────────────────────────────────────────────────
@@ -205,10 +205,14 @@ interface ImeiSubRowProps {
   colSpan: number;
   onAddImei: (imei: string) => void;
   onRemoveImei: (imei: string) => void;
+  onSetImei2: (primaryImei: string, imei2: string) => void;
   onPatchImeiInput: (val: string) => void;
 }
 
-function ImeiSubRow({ line, colSpan, onAddImei, onRemoveImei, onPatchImeiInput }: ImeiSubRowProps) {
+function ImeiSubRow({ line, colSpan, onAddImei, onRemoveImei, onSetImei2, onPatchImeiInput }: ImeiSubRowProps) {
+  const [editingImei2Idx, setEditingImei2Idx] = useState<number | null>(null);
+  const [imei2Input, setImei2Input] = useState('');
+
   const entered = line.imeis.length;
   const needed = line.quantity;
   const isComplete = entered >= needed && needed > 0;
@@ -218,11 +222,18 @@ function ImeiSubRow({ line, colSpan, onAddImei, onRemoveImei, onPatchImeiInput }
     if (e.key === 'Enter') {
       e.preventDefault();
       const val = line.imeiInput.trim();
-      if (val && !line.imeis.includes(val)) onAddImei(val);
+      if (val && !line.imeis.some(u => u.imei === val)) onAddImei(val);
     }
     if (e.key === 'Backspace' && !line.imeiInput && line.imeis.length > 0) {
-      onRemoveImei(line.imeis[line.imeis.length - 1]);
+      onRemoveImei(line.imeis[line.imeis.length - 1].imei);
     }
+  }
+
+  function commitImei2(primaryImei: string) {
+    const val = imei2Input.trim();
+    if (val) onSetImei2(primaryImei, val);
+    setEditingImei2Idx(null);
+    setImei2Input('');
   }
 
   return (
@@ -252,11 +263,43 @@ function ImeiSubRow({ line, colSpan, onAddImei, onRemoveImei, onPatchImeiInput }
             </div>
           </div>
           <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, minHeight: 40, padding: '6px 8px', background: C.paper, border: `1px solid ${isComplete ? '#b8d8c5' : entered > 0 ? '#d9bf6c' : C.line}`, borderRadius: 4, boxShadow: isComplete ? '0 0 0 2px rgba(15,122,74,0.1)' : entered > 0 ? '0 0 0 2px rgba(217,191,108,0.18)' : 'none' }}>
-            {line.imeis.map(imei => (
-              <span key={imei} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 4px 0 8px', background: '#eef5ee', border: '1px solid #cfe2d3', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ink2 }}>
-                {imei}
-                <span onClick={() => onRemoveImei(imei)}
-                  style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, color: C.muted2, cursor: 'pointer' }}
+            {line.imeis.map((unit, unitIdx) => (
+              <span key={unit.imei} style={{ display: 'inline-flex', alignItems: 'center', gap: 0, padding: '0 4px 0 8px', background: '#eef5ee', border: '1px solid #cfe2d3', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: C.ink2, minHeight: 26 }}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <span>{unit.imei}</span>
+                  {unit.imei2 && (
+                    <span style={{ fontSize: 10.5, color: C.muted2, lineHeight: 1.3 }}>SIM2: {unit.imei2}</span>
+                  )}
+                </span>
+                {/* +SIM2 button — only show when imei2 not yet set and not currently editing */}
+                {!unit.imei2 && editingImei2Idx !== unitIdx && (
+                  <span
+                    onClick={() => { setEditingImei2Idx(unitIdx); setImei2Input(''); }}
+                    title="Add SIM 2 IMEI"
+                    style={{ marginLeft: 5, fontSize: 10, color: C.muted2, cursor: 'pointer', border: `1px solid ${C.line2}`, borderRadius: 2, padding: '0 4px', lineHeight: '16px', background: C.subtle, whiteSpace: 'nowrap' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.accent; (e.currentTarget as HTMLElement).style.borderColor = C.accent; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted2; (e.currentTarget as HTMLElement).style.borderColor = C.line2; }}
+                  >
+                    +SIM2
+                  </span>
+                )}
+                {/* Inline IMEI2 input */}
+                {editingImei2Idx === unitIdx && (
+                  <input
+                    autoFocus
+                    style={{ marginLeft: 5, width: 160, border: `1px solid ${C.accent}`, outline: 0, background: 'var(--c-accent-bg)', fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, padding: '1px 5px', borderRadius: 2, color: C.ink }}
+                    placeholder="Scan SIM 2 IMEI…"
+                    value={imei2Input}
+                    onChange={e => setImei2Input(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); commitImei2(unit.imei); }
+                      if (e.key === 'Escape') { setEditingImei2Idx(null); setImei2Input(''); }
+                    }}
+                    onBlur={() => commitImei2(unit.imei)}
+                  />
+                )}
+                <span onClick={() => onRemoveImei(unit.imei)}
+                  style={{ marginLeft: 6, width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3, color: C.muted2, cursor: 'pointer', flexShrink: 0 }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.paper; (e.currentTarget as HTMLElement).style.color = C.bad; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = C.muted2; }}
                 >
@@ -266,7 +309,7 @@ function ImeiSubRow({ line, colSpan, onAddImei, onRemoveImei, onPatchImeiInput }
             ))}
             <input
               style={{ flex: 1, minWidth: 220, border: 0, outline: 0, background: 'transparent', fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, padding: '4px 4px', color: C.ink }}
-              placeholder={isComplete ? 'All IMEIs received — qty matched' : 'Scan or type IMEI · Enter to add'}
+              placeholder={isComplete ? 'All IMEIs received — qty matched' : 'Scan or type SIM 1 IMEI · Enter to add'}
               disabled={isComplete}
               value={line.imeiInput}
               onChange={e => onPatchImeiInput(e.target.value)}
@@ -355,11 +398,15 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
   }
 
   function addImei(idx: number, imei: string) {
-    setLines(prev => { const n = [...prev]; const l = n[idx]; if (l.imeis.includes(imei)) return prev; n[idx] = { ...l, imeis: [...l.imeis, imei], imeiInput: '' }; return n; });
+    setLines(prev => { const n = [...prev]; const l = n[idx]; if (l.imeis.some(u => u.imei === imei)) return prev; n[idx] = { ...l, imeis: [...l.imeis, { imei }], imeiInput: '' }; return n; });
   }
 
   function removeImei(idx: number, imei: string) {
-    setLines(prev => { const n = [...prev]; const l = n[idx]; n[idx] = { ...l, imeis: l.imeis.filter(x => x !== imei) }; return n; });
+    setLines(prev => { const n = [...prev]; const l = n[idx]; n[idx] = { ...l, imeis: l.imeis.filter(u => u.imei !== imei) }; return n; });
+  }
+
+  function setImei2(idx: number, primaryImei: string, imei2: string) {
+    setLines(prev => { const n = [...prev]; const l = n[idx]; n[idx] = { ...l, imeis: l.imeis.map(u => u.imei === primaryImei ? { ...u, imei2 } : u) }; return n; });
   }
 
   // Derived values
@@ -574,6 +621,7 @@ export function PurchaseForm({ onSaved, onCancel }: { onSaved: () => void; onCan
                         line={line} colSpan={7}
                         onAddImei={imei => addImei(i, imei)}
                         onRemoveImei={imei => removeImei(i, imei)}
+                        onSetImei2={(primaryImei, imei2) => setImei2(i, primaryImei, imei2)}
                         onPatchImeiInput={val => patchLine(i, { imeiInput: val })}
                       />
                     )}

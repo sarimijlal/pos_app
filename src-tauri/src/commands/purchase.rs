@@ -2,11 +2,18 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Row, Sqlite, Transaction};
 use tauri_plugin_sql::{DbInstances, DbPool};
 
-// ─── Shared IMEI detail type ──────────────────────────────────────────────────
+// ─── Shared IMEI types ────────────────────────────────────────────────────────
+
+#[derive(Deserialize, Debug)]
+pub struct ImeiInput {
+    imei: String,
+    imei2: Option<String>,
+}
 
 #[derive(Serialize)]
 pub struct ImeiDetail {
     imei: String,
+    imei2: Option<String>,
     status: String, // "in_stock" | "sold" | "returned"
 }
 
@@ -72,7 +79,7 @@ pub struct PurchaseLineInput {
     rate: f64,
     discount: f64,
     total: f64,
-    imeis: Vec<String>,
+    imeis: Vec<ImeiInput>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -187,14 +194,15 @@ async fn do_save(
 
         if line.item_type == "mobile" {
             eprintln!("[purchase:rust] inserting {} IMEI(s)", line.imeis.len());
-            for imei in &line.imeis {
+            for imei_input in &line.imeis {
                 let res = sqlx::query(
                     "INSERT INTO imei_units \
-                     (item_id, imei, status, purchase_invoice_line_id, created_at) \
-                     VALUES (?, ?, 'in_stock', ?, datetime('now'))",
+                     (item_id, imei, imei2, status, purchase_invoice_line_id, created_at) \
+                     VALUES (?, ?, ?, 'in_stock', ?, datetime('now'))",
                 )
                 .bind(line.item_id)
-                .bind(imei.as_str())
+                .bind(&imei_input.imei)
+                .bind(imei_input.imei2.as_deref())
                 .bind(line_id)
                 .execute(&mut **tx)
                 .await
@@ -210,7 +218,7 @@ async fn do_save(
                 .execute(&mut **tx)
                 .await
                 .map_err(|e| e.to_string())?;
-                eprintln!("[purchase:rust] IMEI inserted: {imei}");
+                eprintln!("[purchase:rust] IMEI inserted: {} (imei2: {:?})", imei_input.imei, imei_input.imei2);
             }
         } else {
             sqlx::query(
@@ -937,7 +945,7 @@ pub async fn get_purchase_invoice_by_id(
         let line_id: i64 = lr.try_get("id").map_err(|e| e.to_string())?;
 
         let imei_rows = sqlx::query(
-            "SELECT iu.imei, iu.status \
+            "SELECT iu.imei, iu.imei2, iu.status \
              FROM purchase_imei_lines pil \
              JOIN imei_units iu ON iu.id = pil.imei_unit_id \
              WHERE pil.purchase_invoice_line_id = ? \
@@ -953,6 +961,7 @@ pub async fn get_purchase_invoice_by_id(
             .map(|r| {
                 Ok(ImeiDetail {
                     imei: r.try_get::<String, _>("imei").map_err(|e| e.to_string())?,
+                    imei2: r.try_get::<Option<String>, _>("imei2").map_err(|e| e.to_string())?,
                     status: r.try_get::<String, _>("status").map_err(|e| e.to_string())?,
                 })
             })

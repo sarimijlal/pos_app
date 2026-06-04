@@ -153,6 +153,7 @@ export const imeiUnits = sqliteTable('imei_units', {
   id:                       integer('id').primaryKey({ autoIncrement: true }),
   item_id:                  integer('item_id').notNull().references(() => items.id),
   imei:                     text('imei').notNull().unique(),
+  imei2:                    text('imei2').unique(),
   // in_stock | sold | returned
   status:                   text('status').notNull(),
   purchase_invoice_line_id: integer('purchase_invoice_line_id').notNull().references(() => purchaseInvoiceLines.id),

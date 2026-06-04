@@ -180,7 +180,7 @@ export function SalesDetailPanel({
                           }
                           className="font-mono text-xs"
                         >
-                          {d.imei} · {d.status}
+                          {d.imei}{d.imei2 ? ` / ${d.imei2}` : ''} · {d.status}
                         </Badge>
                       ))}
                     </div>
@@ -264,7 +264,7 @@ export function SalesDetailPanel({
                               className={`font-mono text-xs ${eligible ? 'cursor-pointer select-none' : 'opacity-40'}`}
                               onClick={() => eligible && toggleImei(line.id, d.imei)}
                             >
-                              {d.imei}
+                              {d.imei}{d.imei2 ? ` / ${d.imei2}` : ''}
                               {!eligible && ` (${d.status})`}
                             </Badge>
                           );
