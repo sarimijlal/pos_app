@@ -22,7 +22,7 @@ import { LoadingScreen } from './components/LoadingScreen';
 type NavEntry = { section: Section; invoiceId: number | null; imei: string | null };
 
 function App() {
-  const { isDark, toggle: toggleTheme } = useTheme();
+  const { isDark, toggle: toggleTheme, scheme, setScheme, accentKey, setAccent } = useTheme();
   const [section, setSection] = useState<Section>('dashboard');
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ function App() {
   }
 
   return (
-    <AppShell section={section} onNavigate={navigate} canGoBack={navHistory.length > 0} onGoBack={goBack} isDark={isDark} onToggleTheme={toggleTheme}>
+    <AppShell section={section} onNavigate={navigate} canGoBack={navHistory.length > 0} onGoBack={goBack} isDark={isDark} onToggleTheme={toggleTheme} scheme={scheme} onSetScheme={setScheme} accentKey={accentKey} onSetAccent={setAccent}>
       {section === 'dashboard'         && <DashboardScreen onNavigate={navigate} />}
       {section === 'sales-new'         && <SalesForm onSaved={() => navigate('sales-list')} onCancel={goBack} />}
       {section === 'sales-list'        && <SalesListScreen onNew={() => navigate('sales-new')} onViewDetail={(id) => navigate('sales-detail', id)} onReturn={(id) => navigate('sales-return', id)} />}

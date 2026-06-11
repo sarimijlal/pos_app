@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, type ReactNode, type CSSProperties } from 'react';
+import { ThemePicker } from './ThemePicker';
+import type { Scheme } from '../lib/theme';
 
 // ── Section type (all 13 screens) ──────────────────────────────────────────
 export type Section =
@@ -264,6 +266,10 @@ export function AppShell({
   onGoBack,
   isDark = false,
   onToggleTheme,
+  scheme = 'cool',
+  onSetScheme,
+  accentKey = 'slate',
+  onSetAccent,
   children,
 }: {
   section: Section;
@@ -272,6 +278,10 @@ export function AppShell({
   onGoBack?: () => void;
   isDark?: boolean;
   onToggleTheme?: () => void;
+  scheme?: Scheme;
+  onSetScheme?: (s: Scheme) => void;
+  accentKey?: string;
+  onSetAccent?: (key: string) => void;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(() => {
@@ -614,29 +624,16 @@ export function AppShell({
           {/* Command search */}
           <CmdSearchBar onClick={() => setCmdOpen(true)} />
 
-          {/* Theme toggle */}
+          {/* Theme picker */}
           {onToggleTheme && (
-            <button
-              onClick={onToggleTheme}
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: 32, height: 32, borderRadius: 4, flexShrink: 0,
-                border: '1px solid var(--c-line)', background: 'var(--c-subtle)',
-                cursor: 'pointer', color: 'var(--c-muted)',
-              }}
-            >
-              {isDark ? (
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="8" cy="8" r="3"/>
-                  <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/>
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M13.5 10A6 6 0 016 2.5a6 6 0 000 11 6 6 0 007.5-3.5z"/>
-                </svg>
-              )}
-            </button>
+            <ThemePicker
+              isDark={isDark}
+              scheme={scheme}
+              accentKey={accentKey}
+              onToggleDark={onToggleTheme}
+              onSetScheme={onSetScheme ?? (() => {})}
+              onSetAccent={onSetAccent ?? (() => {})}
+            />
           )}
 
           {/* Clock */}

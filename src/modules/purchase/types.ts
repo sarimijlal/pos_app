@@ -3,9 +3,11 @@ export type PurchaseInvoice = {
   supplier_id: number;
   invoice_no: string;
   invoice_date: string;
-  payment_type: 'cash' | 'credit' | 'partial';
+  payment_type: 'cash' | 'credit' | 'bank' | 'partial';
   cash_amount: number | null;
   credit_amount: number | null;
+  bank_amount: number;
+  bank_account_id: number | null;
   remarks: string | null;
   total_amount: number;
   status: 'active' | 'returned';
@@ -22,6 +24,11 @@ export type PurchaseInvoiceLine = {
   total: number;
 };
 
+export type ImeiInput = {
+  imei: string;
+  imei2?: string;
+};
+
 export type PurchaseLineInput = {
   item_id: number;
   item_type: 'mobile' | 'accessory';
@@ -30,15 +37,17 @@ export type PurchaseLineInput = {
   rate: number;
   discount: number;
   total: number;
-  imeis: string[];
+  imeis: ImeiInput[];
 };
 
 export type SavePurchaseInvoiceInput = {
   supplier_id: number;
   invoice_date: string;
-  payment_type: 'cash' | 'credit' | 'partial';
+  payment_type: 'cash' | 'credit' | 'bank' | 'partial';
   cash_amount: number;
   credit_amount: number;
+  bank_amount: number;
+  bank_account_id: number | null;
   remarks: string;
   lines: PurchaseLineInput[];
 };
@@ -49,6 +58,7 @@ export type PurchaseInvoiceRow = PurchaseInvoice & {
 
 export type ImeiDetail = {
   imei: string;
+  imei2?: string | null;
   status: 'in_stock' | 'sold' | 'returned';
 };
 

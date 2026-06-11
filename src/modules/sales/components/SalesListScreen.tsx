@@ -7,7 +7,7 @@ import type { Customer, Salesperson } from '../../../../interfaces';
 
 import { C } from '../../../lib/theme';
 
-type PayMode = 'all' | 'cash' | 'credit' | 'card' | 'bank';
+type PayMode = 'all' | 'cash' | 'credit' | 'bank' | 'partial';
 type SortCol = 'date' | 'no' | 'total';
 type DatePreset = 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'month';
 
@@ -62,7 +62,7 @@ function presetLabel(preset: DatePreset, from: string, to: string): string {
 }
 
 const PAY_LABEL: Record<PayMode, string> = {
-  all: 'All', cash: 'Cash', credit: 'Credit', card: 'Card', bank: 'Bank',
+  all: 'All', cash: 'Cash', credit: 'Credit', bank: 'Bank', partial: 'Partial',
 };
 
 function PayIcon({ mode }: { mode: Exclude<PayMode, 'all'> }) {
@@ -72,16 +72,16 @@ function PayIcon({ mode }: { mode: Exclude<PayMode, 'all'> }) {
     border: '1px solid',
   };
   const map: Record<string, React.CSSProperties> = {
-    cash:   { background: C.okBg, borderColor: 'var(--c-ok-border)', color: C.ok },
-    credit: { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`, color: C.warn },
-    card:   { background: C.infoBg, borderColor: `color-mix(in oklab, ${C.info} 22%, transparent)`, color: C.info },
-    bank:   { background: C.subtle, borderColor: C.line2, color: C.ink2 },
+    cash:    { background: C.okBg,   borderColor: 'var(--c-ok-border)',                                    color: C.ok },
+    credit:  { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 24%, transparent)`,       color: C.warn },
+    bank:    { background: C.subtle, borderColor: C.line2,                                                  color: C.ink2 },
+    partial: { background: C.warnBg, borderColor: `color-mix(in oklab, ${C.warn} 28%, transparent)`,       color: C.warn },
   };
   const svgMap: Record<string, React.ReactNode> = {
-    cash: <><rect x="2" y="4" width="12" height="8" rx="1"/><circle cx="8" cy="8" r="2"/></>,
-    credit: <><path d="M3 13V3M3 8h7l-2-2M3 8l2 2"/></>,
-    card: <><rect x="2" y="4" width="12" height="8" rx="1"/><path d="M2 7h12M5 10h3"/></>,
-    bank: <><path d="M2 6l6-3 6 3"/><path d="M3 7v5M8 7v5M13 7v5"/><path d="M2 13h12"/></>,
+    cash:    <><rect x="2" y="4" width="12" height="8" rx="1"/><circle cx="8" cy="8" r="2"/></>,
+    credit:  <><path d="M3 13V3M3 8h7l-2-2M3 8l2 2"/></>,
+    bank:    <><path d="M2 6l6-3 6 3"/><path d="M3 7v5M8 7v5M13 7v5"/><path d="M2 13h12"/></>,
+    partial: <><path d="M8 3v4M5 10l3 3 3-3M5 7l3-3 3 3"/></>,
   };
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.ink2, fontFamily: 'inherit' }}>
@@ -586,7 +586,7 @@ export function SalesListScreen({ onNew, onViewDetail, onReturn }: Props) {
               background: C.subtle, padding: 2, gap: 2,
               height: 32, width: '100%', overflow: 'hidden',
             }}>
-              {(['all', 'cash', 'credit', 'card', 'bank'] as PayMode[]).map(m => (
+              {(['all', 'cash', 'credit', 'bank', 'partial'] as PayMode[]).map(m => (
                 <button
                   key={m}
                   onClick={() => { setFilters(f => ({ ...f, payment: m })); setPage(1); }}
