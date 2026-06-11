@@ -126,7 +126,8 @@ One row per physical mobile device. IMEI-level tracking.
 |--------------------------|---------|----------------------------------------------|
 | id                       | integer | Primary key, autoincrement                   |
 | item_id                  | integer | FK → items.id                                |
-| imei                     | text    | Unique across the table                      |
+| imei                     | text    | Unique. Primary IMEI (SIM slot 1).           |
+| imei2                    | text    | Unique. Nullable. Secondary IMEI (SIM slot 2) for dual-SIM phones. |
 | status                   | text    | ENUM: `in_stock`, `sold`, `returned`         |
 | purchase_invoice_line_id | integer | FK → purchase_invoice_lines.id               |
 | sale_invoice_line_id     | integer | FK → sales_invoice_lines.id. Nullable.       |
@@ -135,6 +136,9 @@ One row per physical mobile device. IMEI-level tracking.
 **Rules:**
 - `imei` must be globally unique. Reject duplicates at DB level (UNIQUE constraint)
   and at application level (check before insert).
+- `imei2` is optional (single-SIM phones leave it NULL). When set, it is also globally unique.
+- IMEI lookup (`lookup_imei`) searches both `imei` and `imei2` columns.
+- Business logic always identifies units by `imei` (primary). `imei2` is display-only in sales/returns.
 - Status transitions: `in_stock` → `sold` (on sale), `sold` → `returned` (on sales return),
   `in_stock` → `returned` (on purchase return).
 
